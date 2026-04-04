@@ -233,14 +233,25 @@ include __DIR__ . '/templates/header.php';
                     $prefix = defined('DB_PREFIX') ? DB_PREFIX : 'forum_';
                     
                     // 获取对方用户信息
-                    $other_user = $db->fetch(
-                        "SELECT * FROM `{$prefix}users` WHERE `id` = :id",
-                        ['id' => $other_user_id]
-                    );
+                    if ($other_user_id == 'system' || $other_user_id == 'info') {
+                        // 系统账户
+                        $other_user = [
+                            'id' => $other_user_id,
+                            'username' => $other_user_id == 'system' ? '【系统通知】' : '【互动消息】',
+                            'avatar' => '',
+                            'role' => $other_user_id
+                        ];
+                        $is_info_user = $other_user_id == 'info';
+                    } else {
+                        // 普通用户
+                        $other_user = $db->fetch(
+                            "SELECT * FROM `{$prefix}users` WHERE `id` = :id",
+                            ['id' => $other_user_id]
+                        );
+                        $is_info_user = false;
+                    }
                     
                     if ($other_user) {
-                        // 检查是否为互动消息用户，禁止回复
-                    $is_info_user = $other_user_id == 'info';
                     
                     // 标记消息为已读
                     try {

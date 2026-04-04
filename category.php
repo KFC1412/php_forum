@@ -111,12 +111,28 @@ try {
             $users[$u['id']] = $u;
         }
         
+        // 添加系统账户支持
+        $system_accounts = [
+            'system' => ['username' => '系统通知'],
+            'info' => ['username' => '互动消息']
+        ];
+        
         // 关联用户数据
         foreach ($topics as &$topic) {
-            $topic['username'] = isset($users[$topic['user_id']]) ? $users[$topic['user_id']]['username'] : '未知用户';
+            // 处理系统账户
+            if (isset($system_accounts[$topic['user_id']])) {
+                $topic['username'] = $system_accounts[$topic['user_id']]['username'];
+            } else {
+                $topic['username'] = isset($users[$topic['user_id']]) ? $users[$topic['user_id']]['username'] : '未知用户';
+            }
+            
             $topic['last_post_username'] = '';
-            if (!empty($topic['last_post_user_id']) && isset($users[$topic['last_post_user_id']])) {
-                $topic['last_post_username'] = $users[$topic['last_post_user_id']]['username'];
+            if (!empty($topic['last_post_user_id'])) {
+                if (isset($system_accounts[$topic['last_post_user_id']])) {
+                    $topic['last_post_username'] = $system_accounts[$topic['last_post_user_id']]['username'];
+                } elseif (isset($users[$topic['last_post_user_id']])) {
+                    $topic['last_post_username'] = $users[$topic['last_post_user_id']]['username'];
+                }
             }
         }
         unset($topic);
@@ -125,10 +141,20 @@ try {
         if (isset($_SESSION['user_id'])) {
             // 允许用户查看自己被隐藏的主题
             $topics = $db->fetchAll(
-                "SELECT t.*, u.username, lu.username as last_post_username
+                "SELECT t.*, 
+                        CASE 
+                            WHEN t.user_id = 'system' THEN '系统通知'
+                            WHEN t.user_id = 'info' THEN '互动消息'
+                            ELSE u.username
+                        END as username, 
+                        CASE 
+                            WHEN t.last_post_user_id = 'system' THEN '系统通知'
+                            WHEN t.last_post_user_id = 'info' THEN '互动消息'
+                            ELSE lu.username
+                        END as last_post_username
                 FROM `{$prefix}topics` t 
-                JOIN `{$prefix}users` u ON t.user_id = u.id 
-                LEFT JOIN `{$prefix}users` lu ON t.last_post_user_id = lu.id
+                LEFT JOIN `{$prefix}users` u ON t.user_id = u.id AND t.user_id NOT IN ('system', 'info')
+                LEFT JOIN `{$prefix}users` lu ON t.last_post_user_id = lu.id AND t.last_post_user_id NOT IN ('system', 'info')
                 WHERE t.category_id = :category_id AND (t.status = 'published' OR (t.status = 'hidden' AND t.user_id = :user_id)) 
                 ORDER BY t.is_sticky DESC, t.last_post_time DESC 
                 LIMIT :offset, :limit",
@@ -142,10 +168,20 @@ try {
         } else {
             // 未登录用户只能查看已发布的主题
             $topics = $db->fetchAll(
-                "SELECT t.*, u.username, lu.username as last_post_username
+                "SELECT t.*, 
+                        CASE 
+                            WHEN t.user_id = 'system' THEN '【系统通知】'
+                            WHEN t.user_id = 'info' THEN '【互动消息】'
+                            ELSE u.username
+                        END as username, 
+                        CASE 
+                            WHEN t.last_post_user_id = 'system' THEN '【系统通知】'
+                            WHEN t.last_post_user_id = 'info' THEN '【互动消息】'
+                            ELSE lu.username
+                        END as last_post_username
                 FROM `{$prefix}topics` t 
-                JOIN `{$prefix}users` u ON t.user_id = u.id 
-                LEFT JOIN `{$prefix}users` lu ON t.last_post_user_id = lu.id
+                LEFT JOIN `{$prefix}users` u ON t.user_id = u.id AND t.user_id NOT IN ('system', 'info')
+                LEFT JOIN `{$prefix}users` lu ON t.last_post_user_id = lu.id AND t.last_post_user_id NOT IN ('system', 'info')
                 WHERE t.category_id = :category_id AND t.status = 'published' 
                 ORDER BY t.is_sticky DESC, t.last_post_time DESC 
                 LIMIT :offset, :limit",
@@ -155,6 +191,23 @@ try {
                     'limit' => $topics_per_page
                 ]
             );
+        }
+        
+        // 确保系统账户显示正确
+        foreach ($topics as &$topic) {
+            if (!isset($topic['is_sticky'])) {
+                $topic['is_sticky'] = false;
+            }
+            if ($topic['user_id'] == 'system') {
+                $topic['username'] = '【系统通知】';
+            } elseif ($topic['user_id'] == 'info') {
+                $topic['username'] = '【互动消息】';
+            }
+            if ($topic['last_post_user_id'] == 'system') {
+                $topic['last_post_username'] = '【系统通知】';
+            } elseif ($topic['last_post_user_id'] == 'info') {
+                $topic['last_post_username'] = '【互动消息】';
+            }
         }
     }
     

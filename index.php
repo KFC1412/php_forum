@@ -259,6 +259,12 @@ try {
             $users[$u['id']] = $u;
         }
         
+        // 添加系统账户支持
+        $system_accounts = [
+            'system' => ['username' => '系统通知'],
+            'info' => ['username' => '互动消息']
+        ];
+        
         $cats = [];
         foreach ($categories as $c) {
             $cats[$c['id']] = $c;
@@ -274,13 +280,24 @@ try {
                 $topic['is_recommended'] = false;
             }
             
-            $topic['username'] = isset($users[$topic['user_id']]) ? $users[$topic['user_id']]['username'] : '未知用户';
-            $topic['author_email'] = isset($users[$topic['user_id']]) ? $users[$topic['user_id']]['email'] : '';
+            // 处理系统账户
+            if (isset($system_accounts[$topic['user_id']])) {
+                $topic['username'] = $system_accounts[$topic['user_id']]['username'];
+                $topic['author_email'] = '';
+            } else {
+                $topic['username'] = isset($users[$topic['user_id']]) ? $users[$topic['user_id']]['username'] : '未知用户';
+                $topic['author_email'] = isset($users[$topic['user_id']]) ? $users[$topic['user_id']]['email'] : '';
+            }
+            
             $topic['category_title'] = isset($cats[$topic['category_id']]) ? $cats[$topic['category_id']]['title'] : '未知分类';
             $topic['category_id'] = $topic['category_id'];
             $topic['last_post_username'] = '';
-            if (!empty($topic['last_post_user_id']) && isset($users[$topic['last_post_user_id']])) {
-                $topic['last_post_username'] = $users[$topic['last_post_user_id']]['username'];
+            if (!empty($topic['last_post_user_id'])) {
+                if (isset($system_accounts[$topic['last_post_user_id']])) {
+                    $topic['last_post_username'] = $system_accounts[$topic['last_post_user_id']]['username'];
+                } elseif (isset($users[$topic['last_post_user_id']])) {
+                    $topic['last_post_username'] = $users[$topic['last_post_user_id']]['username'];
+                }
             }
         }
         unset($topic);
@@ -289,12 +306,26 @@ try {
         if (isset($_SESSION['user_id']) && ($_SESSION['role'] === 'admin' || $_SESSION['role'] === 'moderator')) {
             // 管理员和版主可以看到所有主题，包括被隐藏的
             $topics = $db->fetchAll(
-                "SELECT t.*, u.username, u.email as author_email, c.title as category_title, c.id as category_id,
-                        lu.username as last_post_username
+                "SELECT t.*, 
+                        CASE 
+                            WHEN t.user_id = 'system' THEN '系统通知'
+                            WHEN t.user_id = 'info' THEN '互动消息'
+                            ELSE u.username
+                        END as username, 
+                        CASE 
+                            WHEN t.user_id IN ('system', 'info') THEN ''
+                            ELSE u.email
+                        END as author_email, 
+                        c.title as category_title, c.id as category_id,
+                        CASE 
+                            WHEN t.last_post_user_id = 'system' THEN '系统通知'
+                            WHEN t.last_post_user_id = 'info' THEN '互动消息'
+                            ELSE lu.username
+                        END as last_post_username
                 FROM `{$prefix}topics` t 
-                JOIN `{$prefix}users` u ON t.user_id = u.id 
+                LEFT JOIN `{$prefix}users` u ON t.user_id = u.id AND t.user_id NOT IN ('system', 'info')
                 JOIN `{$prefix}categories` c ON t.category_id = c.id 
-                LEFT JOIN `{$prefix}users` lu ON t.last_post_user_id = lu.id
+                LEFT JOIN `{$prefix}users` lu ON t.last_post_user_id = lu.id AND t.last_post_user_id NOT IN ('system', 'info')
                 ORDER BY t.is_sticky DESC, " . ($sort === 'created' ? 't.created_at DESC' : 't.last_post_time DESC') . " 
                 LIMIT :offset, :limit",
                 [
@@ -305,12 +336,26 @@ try {
         } else if (isset($_SESSION['user_id'])) {
             // 普通登录用户可以看到已发布的主题和自己被隐藏的主题
             $topics = $db->fetchAll(
-                "SELECT t.*, u.username, u.email as author_email, c.title as category_title, c.id as category_id,
-                        lu.username as last_post_username
+                "SELECT t.*, 
+                        CASE 
+                            WHEN t.user_id = 'system' THEN '【系统通知】'
+                            WHEN t.user_id = 'info' THEN '【互动消息】'
+                            ELSE u.username
+                        END as username, 
+                        CASE 
+                            WHEN t.user_id IN ('system', 'info') THEN ''
+                            ELSE u.email
+                        END as author_email, 
+                        c.title as category_title, c.id as category_id,
+                        CASE 
+                            WHEN t.last_post_user_id = 'system' THEN '【系统通知】'
+                            WHEN t.last_post_user_id = 'info' THEN '【互动消息】'
+                            ELSE lu.username
+                        END as last_post_username
                 FROM `{$prefix}topics` t 
-                JOIN `{$prefix}users` u ON t.user_id = u.id 
+                LEFT JOIN `{$prefix}users` u ON t.user_id = u.id AND t.user_id NOT IN ('system', 'info')
                 JOIN `{$prefix}categories` c ON t.category_id = c.id 
-                LEFT JOIN `{$prefix}users` lu ON t.last_post_user_id = lu.id
+                LEFT JOIN `{$prefix}users` lu ON t.last_post_user_id = lu.id AND t.last_post_user_id NOT IN ('system', 'info')
                 WHERE t.status = 'published' OR (t.status = 'hidden' AND t.user_id = :user_id) 
                 ORDER BY t.is_sticky DESC, " . ($sort === 'created' ? 't.created_at DESC' : 't.last_post_time DESC') . " 
                 LIMIT :offset, :limit",
@@ -323,12 +368,26 @@ try {
         } else {
             // 未登录用户只能看到已发布的主题
             $topics = $db->fetchAll(
-                "SELECT t.*, u.username, u.email as author_email, c.title as category_title, c.id as category_id,
-                        lu.username as last_post_username
+                "SELECT t.*, 
+                        CASE 
+                            WHEN t.user_id = 'system' THEN '【系统通知】'
+                            WHEN t.user_id = 'info' THEN '【互动消息】'
+                            ELSE u.username
+                        END as username, 
+                        CASE 
+                            WHEN t.user_id IN ('system', 'info') THEN ''
+                            ELSE u.email
+                        END as author_email, 
+                        c.title as category_title, c.id as category_id,
+                        CASE 
+                            WHEN t.last_post_user_id = 'system' THEN '【系统通知】'
+                            WHEN t.last_post_user_id = 'info' THEN '【互动消息】'
+                            ELSE lu.username
+                        END as last_post_username
                 FROM `{$prefix}topics` t 
-                JOIN `{$prefix}users` u ON t.user_id = u.id 
+                LEFT JOIN `{$prefix}users` u ON t.user_id = u.id AND t.user_id NOT IN ('system', 'info')
                 JOIN `{$prefix}categories` c ON t.category_id = c.id 
-                LEFT JOIN `{$prefix}users` lu ON t.last_post_user_id = lu.id
+                LEFT JOIN `{$prefix}users` lu ON t.last_post_user_id = lu.id AND t.last_post_user_id NOT IN ('system', 'info')
                 WHERE t.status = 'published' 
                 ORDER BY t.is_sticky DESC, " . ($sort === 'created' ? 't.created_at DESC' : 't.last_post_time DESC') . " 
                 LIMIT :offset, :limit",
@@ -346,6 +405,19 @@ try {
             }
             if (!isset($topic['is_recommended'])) {
                 $topic['is_recommended'] = false;
+            }
+            // 确保系统账户显示正确
+            if ($topic['user_id'] == 'system') {
+                $topic['username'] = '【系统通知】';
+                $topic['author_email'] = '';
+            } elseif ($topic['user_id'] == 'info') {
+                $topic['username'] = '【互动消息】';
+                $topic['author_email'] = '';
+            }
+            if ($topic['last_post_user_id'] == 'system') {
+                $topic['last_post_username'] = '【系统通知】';
+            } elseif ($topic['last_post_user_id'] == 'info') {
+                $topic['last_post_username'] = '【互动消息】';
             }
         }
         unset($topic);

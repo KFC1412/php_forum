@@ -53,7 +53,7 @@ if ($topic_id == 0) {
     
     $user = [
         'id' => 'system',
-        'username' => '系统通知',
+        'username' => '【系统通知】',
         'avatar' => '/assets/images/icon.png',
         'role' => 'system'
     ];
@@ -111,8 +111,19 @@ try {
             exit;
         }
         
+        // 添加系统账户支持
+        $system_accounts = [
+            'system' => ['username' => '系统通知', 'role' => 'system'],
+            'info' => ['username' => '互动消息', 'role' => 'info']
+        ];
+        
         // 获取用户和分类信息
-        $user = $db->findById('users', $topic['user_id']);
+        if (isset($system_accounts[$topic['user_id']])) {
+            $user = $system_accounts[$topic['user_id']];
+            $user['id'] = $topic['user_id'];
+        } else {
+            $user = $db->findById('users', $topic['user_id']);
+        }
         $category = $db->findById('categories', $topic['category_id']);
         
         $topic['username'] = $user ? $user['username'] : '未知用户';
@@ -124,9 +135,20 @@ try {
         if (isset($_SESSION['user_id']) && ($_SESSION['role'] === 'admin' || $_SESSION['role'] === 'moderator')) {
             // 管理员和版主可以查看所有主题，包括被隐藏的
             $topic = $db->fetch(
-                "SELECT t.*, u.username, u.role, c.title as category_title, c.id as category_id 
+                "SELECT t.*, 
+                        CASE 
+                            WHEN t.user_id = 'system' THEN '系统通知'
+                            WHEN t.user_id = 'info' THEN '互动消息'
+                            ELSE u.username
+                        END as username, 
+                        CASE 
+                            WHEN t.user_id = 'system' THEN 'system'
+                            WHEN t.user_id = 'info' THEN 'info'
+                            ELSE u.role
+                        END as role, 
+                        c.title as category_title, c.id as category_id 
                 FROM `{$prefix}topics` t 
-                JOIN `{$prefix}users` u ON t.user_id = u.id 
+                LEFT JOIN `{$prefix}users` u ON t.user_id = u.id AND t.user_id NOT IN ('system', 'info')
                 JOIN `{$prefix}categories` c ON t.category_id = c.id 
                 WHERE t.id = :id",
                 ['id' => $topic_id]
@@ -134,9 +156,20 @@ try {
         } else if (isset($_SESSION['user_id'])) {
             // 普通登录用户可以查看已发布的主题和自己被隐藏的主题
             $topic = $db->fetch(
-                "SELECT t.*, u.username, u.role, c.title as category_title, c.id as category_id 
+                "SELECT t.*, 
+                        CASE 
+                            WHEN t.user_id = 'system' THEN '【系统通知】'
+                            WHEN t.user_id = 'info' THEN '【互动消息】'
+                            ELSE u.username
+                        END as username, 
+                        CASE 
+                            WHEN t.user_id = 'system' THEN 'system'
+                            WHEN t.user_id = 'info' THEN 'info'
+                            ELSE u.role
+                        END as role, 
+                        c.title as category_title, c.id as category_id 
                 FROM `{$prefix}topics` t 
-                JOIN `{$prefix}users` u ON t.user_id = u.id 
+                LEFT JOIN `{$prefix}users` u ON t.user_id = u.id AND t.user_id NOT IN ('system', 'info')
                 JOIN `{$prefix}categories` c ON t.category_id = c.id 
                 WHERE t.id = :id AND (t.status = 'published' OR (t.status = 'hidden' AND t.user_id = :user_id))",
                 ['id' => $topic_id, 'user_id' => $_SESSION['user_id']]
@@ -144,9 +177,20 @@ try {
         } else {
             // 未登录用户只能查看已发布的主题
             $topic = $db->fetch(
-                "SELECT t.*, u.username, u.role, c.title as category_title, c.id as category_id 
+                "SELECT t.*, 
+                        CASE 
+                            WHEN t.user_id = 'system' THEN '【系统通知】'
+                            WHEN t.user_id = 'info' THEN '【互动消息】'
+                            ELSE u.username
+                        END as username, 
+                        CASE 
+                            WHEN t.user_id = 'system' THEN 'system'
+                            WHEN t.user_id = 'info' THEN 'info'
+                            ELSE u.role
+                        END as role, 
+                        c.title as category_title, c.id as category_id 
                 FROM `{$prefix}topics` t 
-                JOIN `{$prefix}users` u ON t.user_id = u.id 
+                LEFT JOIN `{$prefix}users` u ON t.user_id = u.id AND t.user_id NOT IN ('system', 'info')
                 JOIN `{$prefix}categories` c ON t.category_id = c.id 
                 WHERE t.id = :id AND t.status = 'published'",
                 ['id' => $topic_id]
@@ -206,6 +250,12 @@ try {
             // JSON存储：使用简单查询
             $posts = $db->select('posts', ['topic_id' => $topic_id, 'status' => 'published'], 'created_at ' . $order_direction, $limit);
             
+            // 添加系统账户支持
+            $system_accounts = [
+                'system' => ['username' => '【系统通知】', 'role' => 'system'],
+                'info' => ['username' => '【互动消息】', 'role' => 'info']
+            ];
+            
             // 获取用户信息
             $users = [];
             $all_users = $db->select('users');
@@ -215,19 +265,50 @@ try {
             
             // 关联用户数据
             foreach ($posts as &$post) {
-                $post['username'] = isset($users[$post['user_id']]) ? $users[$post['user_id']]['username'] : '未知用户';
-                $post['avatar'] = isset($users[$post['user_id']]) ? ($users[$post['user_id']]['avatar'] ?? '') : '';
-                $post['role'] = isset($users[$post['user_id']]) ? ($users[$post['user_id']]['role'] ?? 'user') : 'user';
-                $post['user_created_at'] = isset($users[$post['user_id']]) ? ($users[$post['user_id']]['created_at'] ?? '') : '';
-                $post['email'] = isset($users[$post['user_id']]) ? ($users[$post['user_id']]['email'] ?? '') : '';
+                // 处理系统账户
+                if (isset($system_accounts[$post['user_id']])) {
+                    $post['username'] = $system_accounts[$post['user_id']]['username'];
+                    $post['avatar'] = '';
+                    $post['role'] = $system_accounts[$post['user_id']]['role'];
+                    $post['user_created_at'] = '';
+                    $post['email'] = '';
+                } else {
+                    $post['username'] = isset($users[$post['user_id']]) ? $users[$post['user_id']]['username'] : '未知用户';
+                    $post['avatar'] = isset($users[$post['user_id']]) ? ($users[$post['user_id']]['avatar'] ?? '') : '';
+                    $post['role'] = isset($users[$post['user_id']]) ? ($users[$post['user_id']]['role'] ?? 'user') : 'user';
+                    $post['user_created_at'] = isset($users[$post['user_id']]) ? ($users[$post['user_id']]['created_at'] ?? '') : '';
+                    $post['email'] = isset($users[$post['user_id']]) ? ($users[$post['user_id']]['email'] ?? '') : '';
+                }
             }
             unset($post);
         } else {
             // MySQL存储：使用JOIN查询
             $posts = $db->fetchAll(
-                "SELECT p.*, u.username, u.avatar, u.email, u.role, u.created_at as user_created_at 
+                "SELECT p.*, 
+                        CASE 
+                            WHEN p.user_id = 'system' THEN '【系统通知】'
+                            WHEN p.user_id = 'info' THEN '【互动消息】'
+                            ELSE u.username
+                        END as username, 
+                        CASE 
+                            WHEN p.user_id IN ('system', 'info') THEN ''
+                            ELSE u.avatar
+                        END as avatar, 
+                        CASE 
+                            WHEN p.user_id IN ('system', 'info') THEN ''
+                            ELSE u.email
+                        END as email, 
+                        CASE 
+                            WHEN p.user_id = 'system' THEN 'system'
+                            WHEN p.user_id = 'info' THEN 'info'
+                            ELSE u.role
+                        END as role, 
+                        CASE 
+                            WHEN p.user_id IN ('system', 'info') THEN ''
+                            ELSE u.created_at
+                        END as user_created_at 
                 FROM `{$prefix}posts` p 
-                JOIN `{$prefix}users` u ON p.user_id = u.id 
+                LEFT JOIN `{$prefix}users` u ON p.user_id = u.id AND p.user_id NOT IN ('system', 'info')
                 WHERE p.topic_id = :topic_id AND p.status = 'published' 
                 ORDER BY p.created_at {$order_direction} 
                 LIMIT :offset, :limit",
