@@ -496,6 +496,9 @@ switch ($action) {
                 $params['status'] = $status;
             }
             
+            // 排除每日60秒热点资讯主题（ID为0）
+            $conditions[] = 't.id != 0';
+            
             $where_clause = !empty($conditions) ? 'WHERE ' . implode(' AND ', $conditions) : '';
             
             // 获取主题总数
@@ -509,6 +512,11 @@ switch ($action) {
                 // 应用搜索条件
                 $filtered_topics = [];
                 foreach ($all_topics as $topic) {
+                    // 排除每日60秒热点资讯主题（ID为0）
+                    if (isset($topic['id']) && $topic['id'] == 0) {
+                        continue;
+                    }
+                    
                     // 搜索条件
                     if (!empty($search)) {
                         if (strpos($topic['title'], $search) === false && strpos($topic['content'], $search) === false) {

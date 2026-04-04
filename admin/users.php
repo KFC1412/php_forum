@@ -264,6 +264,8 @@ switch ($action) {
                 $password = $_POST['password'] ?? '';
                 $role = $_POST['role'] ?? 'user';
                 $status = $_POST['status'] ?? 'active';
+                $avatar_url = $_POST['avatar_url'] ?? '';
+                $avatar = $user['avatar'] ?? null;
                 
                 // 验证输入
                 if (empty($username) || empty($email) || empty($mobile)) {
@@ -275,6 +277,123 @@ switch ($action) {
                 } else if (!empty($password) && strlen($password) < 6) {
                     $error = '密码长度必须至少6个字符';
                 } else {
+                    // 处理头像URL
+                    if (!empty($avatar_url)) {
+                        $avatar = $avatar_url;
+                    } else if (isset($_FILES['avatar']) && $_FILES['avatar']['error'] === UPLOAD_ERR_OK) {
+                        // 处理头像上传
+                        $upload_dir = __DIR__ . '/../uploads/avatars/';
+                        if (!file_exists($upload_dir)) {
+                            mkdir($upload_dir, 0755, true);
+                        }
+                        
+                        // 验证文件类型
+                        $allowed_types = ['image/jpeg', 'image/png', 'image/gif'];
+                        $file_type = $_FILES['avatar']['type'];
+                        if (!in_array($file_type, $allowed_types)) {
+                            $error = '只支持JPG、PNG、GIF格式的图片';
+                        }
+                        
+                        // 验证文件大小（2MB限制）
+                        $max_size = 2 * 1024 * 1024; // 2MB
+                        if ($_FILES['avatar']['size'] > $max_size) {
+                            $error = '文件大小不能超过2MB';
+                        }
+                        
+                        // 验证文件内容是否为真实图片
+                        $image_info = getimagesize($_FILES['avatar']['tmp_name']);
+                        if (!$image_info) {
+                            $error = '请上传真实的图片文件';
+                        }
+                        
+                        if (!isset($error)) {
+                            $file_ext = pathinfo($_FILES['avatar']['name'], PATHINFO_EXTENSION);
+                            $new_filename = uniqid() . '.' . $file_ext;
+                            $file_path = $upload_dir . $new_filename;
+                            
+                            // 压缩并保存图片
+                            if (compressImage($_FILES['avatar']['tmp_name'], $file_path, 100, 100)) {
+                                $avatar = '/uploads/avatars/' . $new_filename;
+                            } else {
+                                $error = '图片处理失败';
+                            }
+                        }
+                    }
+                    
+                    /**
+                     * 压缩图片
+                     * @param string $source 源图片路径
+                     * @param string $destination 目标图片路径
+                     * @param int $width 目标宽度
+                     * @param int $height 目标高度
+                     * @return bool 是否成功
+                     */
+                    function compressImage($source, $destination, $width, $height) {
+                        // 获取图片信息
+                        list($source_width, $source_height, $source_type) = getimagesize($source);
+                        
+                        // 创建源图片资源
+                        switch ($source_type) {
+                            case IMAGETYPE_JPEG:
+                                $source_image = imagecreatefromjpeg($source);
+                                break;
+                            case IMAGETYPE_PNG:
+                                $source_image = imagecreatefrompng($source);
+                                break;
+                            case IMAGETYPE_GIF:
+                                $source_image = imagecreatefromgif($source);
+                                break;
+                            default:
+                                return false;
+                        }
+                        
+                        if (!$source_image) {
+                            return false;
+                        }
+                        
+                        // 创建目标图片资源
+                        $destination_image = imagecreatetruecolor($width, $height);
+                        
+                        // 处理透明背景
+                        if ($source_type == IMAGETYPE_PNG || $source_type == IMAGETYPE_GIF) {
+                            imagealphablending($destination_image, false);
+                            imagesavealpha($destination_image, true);
+                            $transparent = imagecolorallocatealpha($destination_image, 255, 255, 255, 127);
+                            imagefilledrectangle($destination_image, 0, 0, $width, $height, $transparent);
+                        }
+                        
+                        // 计算缩放比例
+                        $scale = min($width / $source_width, $height / $source_height);
+                        $new_width = $source_width * $scale;
+                        $new_height = $source_height * $scale;
+                        $x = ($width - $new_width) / 2;
+                        $y = ($height - $new_height) / 2;
+                        
+                        // 缩放图片
+                        imagecopyresampled($destination_image, $source_image, $x, $y, 0, 0, $new_width, $new_height, $source_width, $source_height);
+                        
+                        // 保存图片
+                        switch ($source_type) {
+                            case IMAGETYPE_JPEG:
+                                $result = imagejpeg($destination_image, $destination, 85);
+                                break;
+                            case IMAGETYPE_PNG:
+                                $result = imagepng($destination_image, $destination, 6);
+                                break;
+                            case IMAGETYPE_GIF:
+                                $result = imagegif($destination_image, $destination);
+                                break;
+                            default:
+                                $result = false;
+                        }
+                        
+                        // 释放资源
+                        imagedestroy($source_image);
+                        imagedestroy($destination_image);
+                        
+                        return $result;
+                    }
+                    
                     try {
                         // 检查用户名是否已被其他用户使用
                         $exists = $db->fetchColumn(
@@ -299,6 +418,7 @@ switch ($action) {
                                     'username' => $username,
                                     'email' => $email,
                                     'mobile' => $mobile,
+                                    'avatar' => $avatar,
                                     'role' => $role,
                                     'status' => $status,
                                     'updated_at' => date('Y-m-d H:i:s')
@@ -384,8 +504,24 @@ switch ($action) {
                         
                         <tr>
                             <td colspan="2">
-                                <form method="post" action="users.php?action=edit&id=<?php echo $user_id; ?>">
+                                <form method="post" action="users.php?action=edit&id=<?php echo $user_id; ?>" enctype="multipart/form-data">
                                     <table border="1" width="100%" cellspacing="0" cellpadding="5">
+                                        <tr>
+                                            <td width="20%">用户头像</td>
+                                            <td>
+                                                <img src="<?php echo htmlspecialchars(getUserAvatar($user, 100)); ?>" width="100" height="100" style="border-radius: 50%; margin-bottom: 10px;">
+                                                <br>
+                                                <div style="margin: 10px 0;">
+                                                    <label style="display: block; margin-bottom: 5px;">头像URL</label>
+                                                    <input type="text" name="avatar_url" placeholder="输入头像URL或相对路径" style="width: 100%; padding: 5px;">
+                                                </div>
+                                                <div style="margin: 10px 0;">
+                                                    <label style="display: block; margin-bottom: 5px;">或上传头像</label>
+                                                    <input type="file" name="avatar" accept="image/*">
+                                                </div>
+                                                <small>填写URL或上传文件，留空表示不修改</small>
+                                            </td>
+                                        </tr>
                                         <tr>
                                             <td width="20%">用户名</td>
                                             <td>
@@ -395,13 +531,13 @@ switch ($action) {
                                         <tr>
                                             <td>邮箱</td>
                                             <td>
-                                                <input type="email" name="email" value="<?php echo htmlspecialchars($user['email']); ?>" required style="width: 100%;">
+                                                <input type="email" name="email" value="<?php echo htmlspecialchars($user['email']); ?>" required>
                                             </td>
                                         </tr>
                                         <tr>
                                             <td>手机号</td>
                                             <td>
-                                                <input type="tel" name="mobile" value="<?php echo htmlspecialchars($user['mobile'] ?? ''); ?>" required style="width: 100%;">
+                                                <input type="tel" name="mobile" value="<?php echo htmlspecialchars($user['mobile'] ?? ''); ?>" required>
                                             </td>
                                         </tr>
                                         <tr>
@@ -505,6 +641,11 @@ switch ($action) {
             $action_type = $_POST['action_type'] ?? '';
             $value = $_POST['value'] ?? '';
             $user_ids = $_POST['user_ids'] ?? [];
+            
+            // 确保$user_ids是数组
+            if (!is_array($user_ids)) {
+                $user_ids = [$user_ids];
+            }
             
             if (empty($action_type) || empty($value) || empty($user_ids)) {
                 $error = '请填写所有必填字段';
@@ -671,6 +812,10 @@ switch ($action) {
             $action_type = $_POST['action_type'] ?? '';
             $value = $_POST['value'] ?? '';
             $user_ids = $_POST['user_ids'] ?? [];
+            // 确保$user_ids是数组
+            if (!is_array($user_ids)) {
+                $user_ids = [$user_ids];
+            }
             
             if (empty($action_type) || empty($value) || empty($user_ids)) {
                 $error = '请填写所有必填字段';
@@ -1312,8 +1457,8 @@ switch ($action) {
                                 <table border="1" width="100%" cellspacing="0" cellpadding="5">
                                     <tr>
                                         <th width="5%">ID</th>
-                                        <th width="15%">用户名</th>
-                                        <th width="20%">邮箱</th>
+                                        <th width="20%">用户信息</th>
+                                        <th width="15%">邮箱</th>
                                         <th width="15%">手机号</th>
                                         <th width="10%">角色</th>
                                         <th width="10%">状态</th>
@@ -1327,6 +1472,7 @@ switch ($action) {
                                                 <td align="center"><?php echo $user['id']; ?></td>
                                                 <td>
                                                     <a href="../profile.php?id=<?php echo $user['id']; ?>" target="_blank">
+                                                                <img src="<?php echo htmlspecialchars(getUserAvatar($user, 40)); ?>" width="40" height="40" style="border-radius: 50%; vertical-align: middle; margin-right: 10px;">
                                                         <?php echo htmlspecialchars($user['username']); ?>
                                                     </a>
                                                 </td>

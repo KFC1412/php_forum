@@ -33,10 +33,10 @@ define('URL',$_SERVER['DOCUMENT_ROOT']);
  */
 function getUploadDir() {
     // 获取站点根目录
-    $siteRoot = dirname(__DIR__); // 根据实际情况可能需要调整层级
+    $siteRoot = dirname(dirname(dirname(__DIR__))); // 向上三级目录，指向站点根目录
     
     // 构建上传目录（按日期组织）
-    $uploadDir = '/upload/files/' . date("Ymd") . '/';
+    $uploadDir = '/uploads/files/' . date("Ymd") . '/';
     
     // 完整物理路径
     $fullPath = $siteRoot . $uploadDir;

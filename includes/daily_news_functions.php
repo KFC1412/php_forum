@@ -338,3 +338,178 @@ function fetchDailyNewsAuto() {
     
     return false;
 }
+
+/**
+ * 初始化每日60秒热点资讯主题
+ * @return bool 是否成功
+ */
+function init60sNewsTopic() {
+    try {
+        $storage_type = getStorageType();
+        
+        if ($storage_type === 'json') {
+            $topics_file = __DIR__ . '/../storage/json/forum_topics.json';
+            
+            // 读取现有主题数据
+            if (file_exists($topics_file)) {
+                $topics_data = json_decode(file_get_contents($topics_file), true);
+            } else {
+                $topics_data = ['data' => [], 'auto_increment' => 1];
+            }
+            
+            // 检查是否已存在60秒热点资讯主题
+            $exists = false;
+            foreach ($topics_data['data'] as $topic) {
+                if (isset($topic['id']) && $topic['id'] == 0) {
+                    $exists = true;
+                    break;
+                }
+            }
+            
+            if (!$exists) {
+                // 创建新的60秒热点资讯主题，使用ID 0
+                $new_topic = [
+                    'id' => 0, // 特殊ID，不占用常规主题ID
+                    'category_id' => 6, // 假设6是资讯分类
+                    'user_id' => 'system', // 作者为系统通知
+                    'title' => '每日60秒热点资讯 ' . date('Y年m月d日'),
+                    'content' => '<iframe src="/60s" width="100%" height="1200px" frameborder="0" scrolling="auto"></iframe>',
+                    'status' => 'published',
+                    'is_sticky' => 1, // 置顶
+                    'is_locked' => 0,
+                    'is_recommended' => 1, // 推荐
+                    'view_count' => 0,
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s'),
+                    'last_post_id' => null,
+                    'last_post_user_id' => 'system',
+                    'last_post_time' => date('Y-m-d H:i:s'),
+                    'created_ip' => '127.0.0.1',
+                    'ip_info' => '系统自动创建'
+                ];
+                
+                array_unshift($topics_data['data'], $new_topic);
+                
+                // 保存数据
+                file_put_contents($topics_file, json_encode($topics_data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+            }
+        }
+        
+        return true;
+    } catch (Exception $e) {
+        error_log('初始化60秒热点资讯主题失败：' . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * 更新每日60秒热点资讯主题
+ * @return bool 是否成功
+ */
+function update60sNewsTopic() {
+    try {
+        $storage_type = getStorageType();
+        
+        if ($storage_type === 'json') {
+            $topics_file = __DIR__ . '/../storage/json/forum_topics.json';
+            
+            // 读取现有主题数据
+            if (file_exists($topics_file)) {
+                $topics_data = json_decode(file_get_contents($topics_file), true);
+            } else {
+                return init60sNewsTopic();
+            }
+            
+            // 查找60秒热点资讯主题
+            $topic_index = -1;
+            foreach ($topics_data['data'] as $index => $topic) {
+                if (isset($topic['id']) && $topic['id'] == 0) {
+                    $topic_index = $index;
+                    break;
+                }
+            }
+            
+            if ($topic_index >= 0) {
+                // 更新主题信息
+                $topics_data['data'][$topic_index]['title'] = '每日60秒热点资讯 ' . date('Y年m月d日');
+                $topics_data['data'][$topic_index]['updated_at'] = date('Y-m-d H:i:s');
+                $topics_data['data'][$topic_index]['last_post_time'] = date('Y-m-d H:i:s');
+                
+                // 保存数据
+                file_put_contents($topics_file, json_encode($topics_data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+            } else {
+                // 主题不存在，初始化
+                return init60sNewsTopic();
+            }
+        }
+        
+        return true;
+    } catch (Exception $e) {
+        error_log('更新60秒热点资讯主题失败：' . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * 检查并更新每日60秒热点资讯
+ * @return bool 是否成功
+ */
+function checkAndUpdate60sNews() {
+    // 检查是否需要更新（每天只更新一次）
+    $last_update_file = __DIR__ . '/../storage/cache/60s_last_update.txt';
+    $today = date('Y-m-d');
+    
+    if (file_exists($last_update_file)) {
+        $last_update = file_get_contents($last_update_file);
+        if ($last_update == $today) {
+            // 今天已经更新过了
+            return true;
+        }
+    }
+    
+    // 更新60秒热点资讯主题
+    $result = update60sNewsTopic();
+    
+    if ($result) {
+        // 记录更新时间
+        file_put_contents($last_update_file, $today);
+    }
+    
+    return $result;
+}
+
+/**
+ * 获取每日60秒热点资讯主题
+ * @return array|null 主题数据或null
+ */
+function get60sNewsTopic() {
+    try {
+        $storage_type = getStorageType();
+        
+        if ($storage_type === 'json') {
+            $topics_file = __DIR__ . '/../storage/json/forum_topics.json';
+            
+            // 读取主题数据
+            if (file_exists($topics_file)) {
+                $topics_data = json_decode(file_get_contents($topics_file), true);
+                
+                // 查找60秒热点资讯主题
+                foreach ($topics_data['data'] as $topic) {
+                    if (isset($topic['id']) && $topic['id'] == 0) {
+                        // 为主题添加必要的字段
+                        $topic['username'] = '系统通知';
+                        $topic['role'] = 'system';
+                        $topic['category_title'] = '每日热点';
+                        $topic['category_id'] = 6;
+                        return $topic;
+                    }
+                }
+            }
+        }
+        
+        return null;
+    } catch (Exception $e) {
+        error_log('获取60秒热点资讯主题失败：' . $e->getMessage());
+        return null;
+    }
+}

@@ -19,7 +19,7 @@ checkInstall();
 $user_id = $_SESSION['user_id'];
 
 // 创建上传目录
-$upload_dir = __DIR__ . '/upload/avatars/';
+$upload_dir = __DIR__ . '/uploads/avatars/';
 if (!is_dir($upload_dir)) {
     mkdir($upload_dir, 0755, true);
 }
@@ -61,7 +61,7 @@ if ($upload_type === 'file') {
         
         $result = $db->update(
             "{$prefix}users",
-            ['avatar' => '/upload/avatars/' . $filename],
+            ['avatar' => '/uploads/avatars/' . $filename],
             'id = :id',
             ['id' => $user_id]
         );
@@ -71,7 +71,7 @@ if ($upload_type === 'file') {
             logAction('用户上传头像', 'user', $user_id, [
                 'upload_type' => 'file',
                 'filename' => $filename,
-                'file_path' => '/upload/avatars/' . $filename,
+                'file_path' => '/uploads/avatars/' . $filename,
                 'upload_time' => date('Y-m-d H:i:s'),
                 'upload_ip' => getClientIp()
             ]);

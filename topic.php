@@ -30,10 +30,43 @@ checkInstall();
 // 获取主题ID
 $topic_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 
-if ($topic_id <= 0) {
-    header('Location: ' . getHomeUrl());
+if ($topic_id < 0) {
+    header('Location: /');
     exit;
 }
+
+// 处理每日60秒热点资讯
+if ($topic_id == 0) {
+    // 加载每日热点资讯功能
+    require_once __DIR__ . '/includes/daily_news_functions.php';
+    
+    // 检查并更新每日60秒热点资讯
+    checkAndUpdate60sNews();
+    
+    // 获取热点资讯数据
+    $news_topic = get60sNewsTopic();
+    
+    if (!$news_topic) {
+        header('Location: /');
+        exit;
+    }
+    
+    $user = [
+        'id' => 'system',
+        'username' => '系统通知',
+        'avatar' => '/assets/images/icon.png',
+        'role' => 'system'
+    ];
+    
+    $topic = $news_topic;
+    
+    // 设置必要的变量
+    $total_posts = 0;
+    $total_pages = 1;
+    $page = 1;
+    $sort = 'newest';
+    $posts = [];
+} else {
 
 // 获取页码
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
@@ -347,6 +380,7 @@ try {
 } catch (Exception $e) {
     $error = '加载主题信息失败: ' . $e->getMessage();
 }
+}
 
 // 设置页面标题
 $page_title = isset($topic) ? $topic['title'] : '主题详情';
@@ -448,13 +482,13 @@ include __DIR__ . '/templates/header.php';
                             </td>
                             <td align="right" style="white-space: nowrap; width: 1%;">
                                 <?php if (isset($_SESSION['user_id'])): ?>
-                                    <a href="javascript:void(0);" class="reply-btn reply-topic-btn" data-username="<?php echo htmlspecialchars($topic['username']); ?>" style="display: inline-block;">回复</a><span style="margin: 0 8px;">|</span><a href="javascript:void(0);" onclick="openReportModal('topic', <?php echo $topic['id']; ?>, '<?php echo addslashes($topic['title']); ?>')" style="display: inline-block;">举报</a><?php if ($_SESSION['user_id'] == $topic['user_id'] || $_SESSION['role'] == 'admin'): ?><span style="margin: 0 8px;">|</span><a href="<?php echo getEditTopicUrl($topic_id); ?>" style="display: inline-block;">编辑</a><span style="margin: 0 8px;">|</span><a href="delete.php?type=topic&id=<?php echo $topic['id']; ?>&redirect=user.php" class="confirm-action" data-confirm-message="确定要删除这个主题吗？这将删除所有相关回复。" style="display: inline-block;">删除</a><?php endif; ?>
+                                    <a href="javascript:void(0);" class="reply-btn reply-topic-btn" data-username="<?php echo htmlspecialchars($topic['username']); ?>" style="display: inline-block;">回复</a><?php if ($topic_id != 0): ?><span style="margin: 0 8px;">|</span><a href="javascript:void(0);" onclick="openReportModal('topic', <?php echo $topic['id']; ?>, '<?php echo addslashes($topic['title']); ?>')" style="display: inline-block;">举报</a><?php if ($_SESSION['user_id'] == $topic['user_id'] || $_SESSION['role'] == 'admin'): ?><span style="margin: 0 8px;">|</span><a href="<?php echo getEditTopicUrl($topic_id); ?>" style="display: inline-block;">编辑</a><span style="margin: 0 8px;">|</span><a href="delete.php?type=topic&id=<?php echo $topic['id']; ?>&redirect=user.php" class="confirm-action" data-confirm-message="确定要删除这个主题吗？这将删除所有相关回复。" style="display: inline-block;">删除</a><?php endif; ?><?php endif; ?>
                                 <?php endif; ?>
                             </td>
                         </tr>
                         <tr>
                             <td colspan="2">
-                                <?php if ($topic_id == 1): ?>
+                                <?php if ($topic_id == 0): ?>
                                     <?php
                                     // 直接包含60s的内容
                                     $sixty_seconds_path = __DIR__ . '/60s/index.php';

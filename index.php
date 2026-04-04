@@ -16,7 +16,11 @@ require_once __DIR__ . '/config/config.php';
 // 加载函数库
 require_once __DIR__ . '/includes/functions.php';
 require_once __DIR__ . '/includes/database.php';
+require_once __DIR__ . '/includes/daily_news_functions.php';
 require("admin/includes/site_functions.php");
+
+// 检查并更新每日60秒热点资讯
+checkAndUpdate60sNews();
 
 // 检查是否已安装
 try {
