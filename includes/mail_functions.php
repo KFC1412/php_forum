@@ -744,35 +744,12 @@ function sendInteractionNotification($receiver_id, $type, $data) {
         $db = getDB();
         $prefix = defined('DB_PREFIX') ? DB_PREFIX : 'forum_';
         
-        // 确保互动消息用户存在
+        // 加载系统账户函数
+        require_once __DIR__ . '/system_account_functions.php';
+        
+        // 确保互动消息系统账户存在
         $infoUserId = 'info';
-        $infoUser = $db->fetch(
-            "SELECT id FROM `{$prefix}users` WHERE `id` = ?",
-            [$infoUserId]
-        );
-        if (!$infoUser) {
-            // 尝试插入互动消息用户
-            try {
-                if (getDBType() === 'mysql') {
-                    $db->query(
-                        "INSERT INTO `{$prefix}users` (`id`, `username`, `password`, `email`, `status`, `role`, `created_at`) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                        [$infoUserId, '【互动消息】', password_hash('info_user_' . time(), PASSWORD_DEFAULT), 'info@localhost', 'active', 'system', date('Y-m-d H:i:s')]
-                    );
-                } else {
-                    $db->insert("{$prefix}users", [
-                        'id' => $infoUserId,
-                        'username' => '【互动消息】',
-                        'password' => password_hash('info_user_' . time(), PASSWORD_DEFAULT),
-                        'email' => 'info@localhost',
-                        'status' => 'active',
-                        'role' => 'system',
-                        'created_at' => date('Y-m-d H:i:s')
-                    ]);
-                }
-            } catch (Exception $e) {
-                // 忽略插入错误
-            }
-        }
+        ensureCoreSystemAccounts();
         
         // 构建通知内容
         $content = '';

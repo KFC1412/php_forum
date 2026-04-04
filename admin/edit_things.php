@@ -22,6 +22,7 @@ require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../includes/database.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/mail_functions.php';
+require_once __DIR__ . '/../includes/system_account_functions.php';
 require_once __DIR__ . '/includes/admin_functions.php';
 
 // 检查是否已登录且是管理员
@@ -73,36 +74,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_notification']))
         $prefix = defined('DB_PREFIX') ? DB_PREFIX : 'forum_';
         $site_name = getSetting('site_name', 'PHP轻论坛');
         
-        // 确保系统用户存在（使用特殊ID 'system'）
+        // 确保系统账户存在
         $systemUserId = 'system';
-        $systemUser = $db->fetch(
-            "SELECT id FROM `{$prefix}users` WHERE `id` = ?",
-            [$systemUserId]
-        );
-        if (!$systemUser) {
-            // 尝试插入系统用户，使用特殊ID
-            try {
-                // 对于MySQL，直接指定ID
-                if (getDBType() === 'mysql') {
-                    $db->query(
-                        "INSERT INTO `{$prefix}users` (`id`, `username`, `password`, `email`, `status`, `role`, `created_at`) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                        [$systemUserId, '【系统通知】', password_hash('system_user_' . time(), PASSWORD_DEFAULT), 'system@localhost', 'active', 'system', date('Y-m-d H:i:s')]
-                    );
-                } else {
-                    // 对于其他数据库，使用普通插入
-                    $db->insert("{$prefix}users", [
-                        'id' => $systemUserId,
-                        'username' => '【系统通知】',
-                        'password' => password_hash('system_user_' . time(), PASSWORD_DEFAULT),
-                        'email' => 'system@localhost',
-                        'status' => 'active',
-                        'role' => 'system',
-                        'created_at' => date('Y-m-d H:i:s')
-                    ]);
-                }
-            } catch (Exception $e) {
-                // 忽略插入错误，可能是因为已经存在
-            }
+        if (!ensureCoreSystemAccounts()) {
+            error_log('系统账户初始化失败');
         }
         
         // 处理邮件通知

@@ -135,6 +135,43 @@ function getDatabaseSchema($prefix = 'forum_') {
             KEY `status` (`status`),
             KEY `sort_order` (`sort_order`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+
+        // 系统账户表 - 存储互动消息、系统通知等特殊账户
+        "{$prefix}system_accounts" => "CREATE TABLE IF NOT EXISTS `{$prefix}system_accounts` (
+            `id` varchar(50) NOT NULL,
+            `username` varchar(100) NOT NULL,
+            `display_name` varchar(100) DEFAULT NULL,
+            `avatar` varchar(255) DEFAULT NULL,
+            `account_type` enum('system','info','service') NOT NULL DEFAULT 'service',
+            `description` text DEFAULT NULL,
+            `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+            `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (`id`),
+            UNIQUE KEY `username` (`username`),
+            KEY `account_type` (`account_type`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+
+        // 每日热点资讯表 - 独立存储，避免被安装覆盖
+        "{$prefix}daily_news" => "CREATE TABLE IF NOT EXISTS `{$prefix}daily_news` (
+            `id` int(11) NOT NULL AUTO_INCREMENT,
+            `title` varchar(255) NOT NULL,
+            `content` text NOT NULL,
+            `summary` text DEFAULT NULL,
+            `source` varchar(255) DEFAULT NULL,
+            `source_url` varchar(500) DEFAULT NULL,
+            `image_url` varchar(500) DEFAULT NULL,
+            `category` varchar(50) DEFAULT 'general',
+            `status` enum('published','draft','archived') DEFAULT 'published',
+            `view_count` int(11) DEFAULT 0,
+            `publish_date` date DEFAULT NULL,
+            `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+            `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (`id`),
+            KEY `category` (`category`),
+            KEY `status` (`status`),
+            KEY `publish_date` (`publish_date`),
+            KEY `created_at` (`created_at`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
     ];
 }
 ?>

@@ -32,7 +32,7 @@ try {
     $prefix = defined('DB_PREFIX') ? DB_PREFIX : 'forum_';
     $storage_type = defined('STORAGE_TYPE') ? STORAGE_TYPE : 'mysql';
     
-    // 获取用户数量
+    // 获取用户数量（排除系统账户）
     $user_count = $db->fetchColumn("SELECT COUNT(*) FROM `{$prefix}users` WHERE `role` != 'system'");
     
     // 获取主题数量
@@ -44,7 +44,7 @@ try {
     // 获取分类数量
     $category_count = $db->fetchColumn("SELECT COUNT(*) FROM `{$prefix}categories`");
     
-    // 获取最近注册的用户
+    // 获取最近注册的用户（排除系统账户）
     $recent_users = $db->fetchAll(
         "SELECT * FROM `{$prefix}users` WHERE `role` != 'system' ORDER BY `created_at` DESC LIMIT 5"
     );
@@ -58,10 +58,7 @@ try {
         $users = [];
         $all_users = $db->select('users');
         foreach ($all_users as $u) {
-            // 排除系统用户
-            if ($u['role'] !== 'system') {
-                $users[$u['id']] = $u;
-            }
+            $users[$u['id']] = $u;
         }
         
         // 关联用户数据
@@ -87,10 +84,7 @@ try {
         $users = [];
         $all_users = $db->select('users');
         foreach ($all_users as $u) {
-            // 排除系统用户
-            if ($u['role'] !== 'system') {
-                $users[$u['id']] = $u;
-            }
+            $users[$u['id']] = $u;
         }
         
         $topics = [];

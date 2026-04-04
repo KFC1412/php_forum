@@ -143,6 +143,39 @@ function getDefaultData($prefix = 'forum_') {
                 'sort_order' => 100,
                 'status' => 1
             ]
+        ],
+
+        // 系统账户 - 不在users表中，避免被安装覆盖
+        "{$prefix}system_accounts" => [
+            [
+                'id' => 'system',
+                'username' => 'system',
+                'display_name' => '【系统通知】',
+                'avatar' => null,
+                'account_type' => 'system',
+                'description' => '系统通知账户，用于发送系统级别的通知消息'
+            ],
+            [
+                'id' => 'info',
+                'username' => 'info',
+                'display_name' => '【互动消息】',
+                'avatar' => null,
+                'account_type' => 'info',
+                'description' => '互动消息账户，用于发送用户互动相关的通知'
+            ]
+        ],
+
+        // 默认每日热点资讯 - 示例数据
+        "{$prefix}daily_news" => [
+            [
+                'title' => '欢迎使用EDUCN论坛每日热点功能',
+                'content' => '每日热点资讯功能可以帮助您快速了解最新的行业动态和热门话题。系统会自动抓取和整理相关资讯，为您提供有价值的信息。',
+                'summary' => '了解每日热点资讯功能的使用方法',
+                'source' => 'EDUCN论坛',
+                'category' => 'general',
+                'status' => 'published',
+                'publish_date' => date('Y-m-d')
+            ]
         ]
     ];
 }

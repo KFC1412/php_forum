@@ -236,13 +236,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         }
                         
                         if ($has_existing_data && $data_action === 'overwrite') {
-                            // 覆盖数据，删除所有表
+                            // 覆盖数据，删除所有表（但保留系统账户和每日热点资讯数据）
                             include_once 'database_schema.php';
                             $tables = getDatabaseSchema($db_prefix);
+                            
+                            // 备份系统账户数据
+                            $system_accounts_backup = [];
+                            try {
+                                $stmt = $pdo->query("SELECT * FROM `{$db_prefix}system_accounts`");
+                                $system_accounts_backup = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                            } catch (PDOException $e) {
+                                // 表可能不存在，忽略错误
+                            }
+                            
+                            // 备份每日热点资讯数据
+                            $daily_news_backup = [];
+                            try {
+                                $stmt = $pdo->query("SELECT * FROM `{$db_prefix}daily_news`");
+                                $daily_news_backup = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                            } catch (PDOException $e) {
+                                // 表可能不存在，忽略错误
+                            }
                             
                             foreach (array_reverse(array_keys($tables)) as $table_name) {
                                 $pdo->exec("DROP TABLE IF EXISTS `$table_name`");
                             }
+                            
+                            // 恢复标记：需要恢复系统数据
+                            $_SESSION['restore_system_data'] = true;
+                            $_SESSION['system_accounts_backup'] = $system_accounts_backup;
+                            $_SESSION['daily_news_backup'] = $daily_news_backup;
                         }
                         
                         include_once 'database_schema.php';
@@ -260,6 +283,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $default_data = getDefaultData($db_prefix);
                         
                         foreach ($default_data as $table => $rows) {
+                            // 跳过系统账户表和每日热点资讯表，稍后单独处理
+                            if ($table === "{$db_prefix}system_accounts" || $table === "{$db_prefix}daily_news") {
+                                continue;
+                            }
+                            
                             foreach ($rows as $row) {
                                 // 检查是否已存在相同数据
                                 $where = [];
@@ -288,6 +316,97 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     }
                                 }
                             }
+                        }
+                        
+                        // 处理系统账户数据 - 合并默认数据和备份数据
+                        $system_accounts_table = "{$db_prefix}system_accounts";
+                        if (isset($default_data[$system_accounts_table])) {
+                            // 首先插入默认的系统账户
+                            foreach ($default_data[$system_accounts_table] as $row) {
+                                $sql = "SELECT COUNT(*) FROM `{$system_accounts_table}` WHERE `id` = ?";
+                                $stmt = $pdo->prepare($sql);
+                                $stmt->execute([$row['id']]);
+                                $count = $stmt->fetchColumn();
+                                
+                                if ($count === 0) {
+                                    $fields = array_keys($row);
+                                    $placeholders = array_fill(0, count($fields), '?');
+                                    $sql = "INSERT INTO `{$system_accounts_table}` (`" . implode('`, `', $fields) . "`) VALUES (" . implode(', ', $placeholders) . ")";
+                                    $stmt = $pdo->prepare($sql);
+                                    $stmt->execute(array_values($row));
+                                }
+                            }
+                        }
+                        
+                        // 恢复备份的系统账户数据（如果有）
+                        if (!empty($_SESSION['system_accounts_backup'])) {
+                            foreach ($_SESSION['system_accounts_backup'] as $backup_row) {
+                                $sql = "SELECT COUNT(*) FROM `{$system_accounts_table}` WHERE `id` = ?";
+                                $stmt = $pdo->prepare($sql);
+                                $stmt->execute([$backup_row['id']]);
+                                $count = $stmt->fetchColumn();
+                                
+                                if ($count === 0) {
+                                    // 移除自动生成的字段
+                                    unset($backup_row['created_at']);
+                                    unset($backup_row['updated_at']);
+                                    $fields = array_keys($backup_row);
+                                    $placeholders = array_fill(0, count($fields), '?');
+                                    $sql = "INSERT INTO `{$system_accounts_table}` (`" . implode('`, `', $fields) . "`) VALUES (" . implode(', ', $placeholders) . ")";
+                                    $stmt = $pdo->prepare($sql);
+                                    $stmt->execute(array_values($backup_row));
+                                }
+                            }
+                            // 清除备份数据
+                            unset($_SESSION['system_accounts_backup']);
+                        }
+                        
+                        // 处理每日热点资讯数据 - 合并默认数据和备份数据
+                        $daily_news_table = "{$db_prefix}daily_news";
+                        if (isset($default_data[$daily_news_table])) {
+                            // 首先插入默认的每日热点
+                            foreach ($default_data[$daily_news_table] as $row) {
+                                $sql = "SELECT COUNT(*) FROM `{$daily_news_table}` WHERE `title` = ? AND `publish_date` = ?";
+                                $stmt = $pdo->prepare($sql);
+                                $stmt->execute([$row['title'], $row['publish_date']]);
+                                $count = $stmt->fetchColumn();
+                                
+                                if ($count === 0) {
+                                    $fields = array_keys($row);
+                                    $placeholders = array_fill(0, count($fields), '?');
+                                    $sql = "INSERT INTO `{$daily_news_table}` (`" . implode('`, `', $fields) . "`) VALUES (" . implode(', ', $placeholders) . ")";
+                                    $stmt = $pdo->prepare($sql);
+                                    $stmt->execute(array_values($row));
+                                }
+                            }
+                        }
+                        
+                        // 恢复备份的每日热点数据（如果有）
+                        if (!empty($_SESSION['daily_news_backup'])) {
+                            foreach ($_SESSION['daily_news_backup'] as $backup_row) {
+                                $sql = "SELECT COUNT(*) FROM `{$daily_news_table}` WHERE `title` = ? AND `publish_date` = ?";
+                                $stmt = $pdo->prepare($sql);
+                                $stmt->execute([$backup_row['title'], $backup_row['publish_date']]);
+                                $count = $stmt->fetchColumn();
+                                
+                                if ($count === 0) {
+                                    // 移除自动生成的字段
+                                    unset($backup_row['created_at']);
+                                    unset($backup_row['updated_at']);
+                                    $fields = array_keys($backup_row);
+                                    $placeholders = array_fill(0, count($fields), '?');
+                                    $sql = "INSERT INTO `{$daily_news_table}` (`" . implode('`, `', $fields) . "`) VALUES (" . implode(', ', $placeholders) . ")";
+                                    $stmt = $pdo->prepare($sql);
+                                    $stmt->execute(array_values($backup_row));
+                                }
+                            }
+                            // 清除备份数据
+                            unset($_SESSION['daily_news_backup']);
+                        }
+                        
+                        // 清除恢复标记
+                        if (isset($_SESSION['restore_system_data'])) {
+                            unset($_SESSION['restore_system_data']);
                         }
                         
                         $config_content = "<?php\n";
@@ -348,9 +467,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                     
                     if ($has_existing_data && $data_action === 'overwrite') {
-                        // 覆盖数据，删除所有JSON文件
+                        // 覆盖数据，删除所有JSON文件（但保留系统账户和每日热点资讯数据）
                         include_once 'database_schema.php';
                         $tables = getDatabaseSchema($db_prefix);
+                        
+                        // 备份系统账户数据
+                        $system_accounts_backup = [];
+                        $system_accounts_file = $full_storage_dir . '/' . $db_prefix . 'system_accounts.json';
+                        if (file_exists($system_accounts_file)) {
+                            $system_accounts_data = json_decode(file_get_contents($system_accounts_file), true);
+                            if (!empty($system_accounts_data['data'])) {
+                                $system_accounts_backup = $system_accounts_data['data'];
+                            }
+                        }
+                        
+                        // 备份每日热点资讯数据
+                        $daily_news_backup = [];
+                        $daily_news_file = $full_storage_dir . '/' . $db_prefix . 'daily_news.json';
+                        if (file_exists($daily_news_file)) {
+                            $daily_news_data = json_decode(file_get_contents($daily_news_file), true);
+                            if (!empty($daily_news_data['data'])) {
+                                $daily_news_backup = $daily_news_data['data'];
+                            }
+                        }
                         
                         foreach (array_keys($tables) as $table_name) {
                             $table_file = $full_storage_dir . '/' . $table_name . '.json';
@@ -358,6 +497,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 unlink($table_file);
                             }
                         }
+                        
+                        // 恢复标记：需要恢复系统数据
+                        $_SESSION['restore_system_data'] = true;
+                        $_SESSION['system_accounts_backup'] = $system_accounts_backup;
+                        $_SESSION['daily_news_backup'] = $daily_news_backup;
                     }
                     
                     include_once 'database_schema.php';
@@ -375,6 +519,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $default_data = getDefaultData($db_prefix);
                     
                     foreach ($default_data as $table => $rows) {
+                        // 跳过系统账户表和每日热点资讯表，稍后单独处理
+                        if ($table === "{$db_prefix}system_accounts" || $table === "{$db_prefix}daily_news") {
+                            continue;
+                        }
+                        
                         foreach ($rows as $row) {
                             // 检查是否已存在相同数据
                             $existing_data = $jsonStorage->select($table, $row);
@@ -383,6 +532,65 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 $jsonStorage->insert($table, $row);
                             }
                         }
+                    }
+                    
+                    // 处理系统账户数据 - 合并默认数据和备份数据
+                    $system_accounts_table = "{$db_prefix}system_accounts";
+                    if (isset($default_data[$system_accounts_table])) {
+                        // 首先插入默认的系统账户
+                        foreach ($default_data[$system_accounts_table] as $row) {
+                            $existing = $jsonStorage->select($system_accounts_table, ['id' => $row['id']]);
+                            if (empty($existing)) {
+                                $jsonStorage->insert($system_accounts_table, $row);
+                            }
+                        }
+                    }
+                    
+                    // 恢复备份的系统账户数据（如果有）
+                    if (!empty($_SESSION['system_accounts_backup'])) {
+                        foreach ($_SESSION['system_accounts_backup'] as $backup_row) {
+                            $existing = $jsonStorage->select($system_accounts_table, ['id' => $backup_row['id']]);
+                            if (empty($existing)) {
+                                $jsonStorage->insert($system_accounts_table, $backup_row);
+                            }
+                        }
+                        // 清除备份数据
+                        unset($_SESSION['system_accounts_backup']);
+                    }
+                    
+                    // 处理每日热点资讯数据 - 合并默认数据和备份数据
+                    $daily_news_table = "{$db_prefix}daily_news";
+                    if (isset($default_data[$daily_news_table])) {
+                        // 首先插入默认的每日热点
+                        foreach ($default_data[$daily_news_table] as $row) {
+                            $existing = $jsonStorage->select($daily_news_table, [
+                                'title' => $row['title'],
+                                'publish_date' => $row['publish_date']
+                            ]);
+                            if (empty($existing)) {
+                                $jsonStorage->insert($daily_news_table, $row);
+                            }
+                        }
+                    }
+                    
+                    // 恢复备份的每日热点数据（如果有）
+                    if (!empty($_SESSION['daily_news_backup'])) {
+                        foreach ($_SESSION['daily_news_backup'] as $backup_row) {
+                            $existing = $jsonStorage->select($daily_news_table, [
+                                'title' => $backup_row['title'],
+                                'publish_date' => $backup_row['publish_date']
+                            ]);
+                            if (empty($existing)) {
+                                $jsonStorage->insert($daily_news_table, $backup_row);
+                            }
+                        }
+                        // 清除备份数据
+                        unset($_SESSION['daily_news_backup']);
+                    }
+                    
+                    // 清除恢复标记
+                    if (isset($_SESSION['restore_system_data'])) {
+                        unset($_SESSION['restore_system_data']);
                     }
                     
                     $config_content = "<?php\n";
