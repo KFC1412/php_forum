@@ -135,7 +135,12 @@ if ($upload_type === 'file') {
  */
 function compressImage($source, $destination, $width, $height) {
     // 获取图片信息
-    list($source_width, $source_height, $source_type) = getimagesize($source);
+    $image_info = getimagesize($source);
+    if (!$image_info) {
+        return false;
+    }
+    
+    list($source_width, $source_height, $source_type) = $image_info;
     
     // 创建源图片资源
     switch ($source_type) {
