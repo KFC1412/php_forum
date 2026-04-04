@@ -802,4 +802,77 @@ document.getElementById('appealForm').addEventListener('submit', function(e) {
         alert('提交失败：' + error.message);
     });
 });
+
+// 小彩蛋功能
+let easterEggClicks = 0;
+const siteNameElement = document.querySelector('strong');
+
+if (siteNameElement) {
+    siteNameElement.addEventListener('click', function() {
+        easterEggClicks++;
+        
+        if (easterEggClicks === 5) {
+            // 显示彩蛋消息
+            const easterEggModal = document.createElement('div');
+            easterEggModal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(0, 0, 0, 0.8);
+                z-index: 2000;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                animation: fadeIn 0.5s ease-in-out;
+            `;
+            
+            const easterEggContent = document.createElement('div');
+            easterEggContent.style.cssText = `
+                background-color: white;
+                padding: 30px;
+                border-radius: 10px;
+                text-align: center;
+                max-width: 500px;
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+                animation: slideIn 0.5s ease-in-out;
+            `;
+            
+            easterEggContent.innerHTML = `
+                <h2 style="color: #ff6b6b; margin-bottom: 20px;">🎉 恭喜你发现了彩蛋！</h2>
+                <p style="font-size: 16px; margin-bottom: 20px;">你是一个细心的用户，这是给你的小奖励！</p>
+                <p style="font-size: 14px; color: #666; margin-bottom: 30px;">论坛 v0.2.0_t_260404</p>
+                <button onclick="this.parentElement.parentElement.remove()" style="
+                    padding: 10px 20px;
+                    background-color: #4ecdc4;
+                    color: white;
+                    border: none;
+                    border-radius: 5px;
+                    cursor: pointer;
+                    font-size: 14px;
+                ">关闭</button>
+            `;
+            
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes fadeIn {
+                    from { opacity: 0; }
+                    to { opacity: 1; }
+                }
+                @keyframes slideIn {
+                    from { transform: translateY(-50px); opacity: 0; }
+                    to { transform: translateY(0); opacity: 1; }
+                }
+            `;
+            
+            document.head.appendChild(style);
+            easterEggModal.appendChild(easterEggContent);
+            document.body.appendChild(easterEggModal);
+            
+            // 重置点击计数
+            easterEggClicks = 0;
+        }
+    });
+}
 </script>

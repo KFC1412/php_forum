@@ -280,119 +280,9 @@ switch ($action) {
                     // 处理头像URL
                     if (!empty($avatar_url)) {
                         $avatar = $avatar_url;
-                    } else if (isset($_FILES['avatar']) && $_FILES['avatar']['error'] === UPLOAD_ERR_OK) {
-                        // 处理头像上传
-                        $upload_dir = __DIR__ . '/../uploads/avatars/';
-                        if (!file_exists($upload_dir)) {
-                            mkdir($upload_dir, 0755, true);
-                        }
-                        
-                        // 验证文件类型
-                        $allowed_types = ['image/jpeg', 'image/png', 'image/gif'];
-                        $file_type = $_FILES['avatar']['type'];
-                        if (!in_array($file_type, $allowed_types)) {
-                            $error = '只支持JPG、PNG、GIF格式的图片';
-                        }
-                        
-                        // 验证文件大小（2MB限制）
-                        $max_size = 2 * 1024 * 1024; // 2MB
-                        if ($_FILES['avatar']['size'] > $max_size) {
-                            $error = '文件大小不能超过2MB';
-                        }
-                        
-                        // 验证文件内容是否为真实图片
-                        $image_info = getimagesize($_FILES['avatar']['tmp_name']);
-                        if (!$image_info) {
-                            $error = '请上传真实的图片文件';
-                        }
-                        
-                        if (!isset($error)) {
-                            $file_ext = pathinfo($_FILES['avatar']['name'], PATHINFO_EXTENSION);
-                            $new_filename = uniqid() . '.' . $file_ext;
-                            $file_path = $upload_dir . $new_filename;
-                            
-                            // 压缩并保存图片
-                            if (compressImage($_FILES['avatar']['tmp_name'], $file_path, 100, 100)) {
-                                $avatar = '/uploads/avatars/' . $new_filename;
-                            } else {
-                                $error = '图片处理失败';
-                            }
-                        }
                     }
                     
-                    /**
-                     * 压缩图片
-                     * @param string $source 源图片路径
-                     * @param string $destination 目标图片路径
-                     * @param int $width 目标宽度
-                     * @param int $height 目标高度
-                     * @return bool 是否成功
-                     */
-                    function compressImage($source, $destination, $width, $height) {
-                        // 获取图片信息
-                        list($source_width, $source_height, $source_type) = getimagesize($source);
-                        
-                        // 创建源图片资源
-                        switch ($source_type) {
-                            case IMAGETYPE_JPEG:
-                                $source_image = imagecreatefromjpeg($source);
-                                break;
-                            case IMAGETYPE_PNG:
-                                $source_image = imagecreatefrompng($source);
-                                break;
-                            case IMAGETYPE_GIF:
-                                $source_image = imagecreatefromgif($source);
-                                break;
-                            default:
-                                return false;
-                        }
-                        
-                        if (!$source_image) {
-                            return false;
-                        }
-                        
-                        // 创建目标图片资源
-                        $destination_image = imagecreatetruecolor($width, $height);
-                        
-                        // 处理透明背景
-                        if ($source_type == IMAGETYPE_PNG || $source_type == IMAGETYPE_GIF) {
-                            imagealphablending($destination_image, false);
-                            imagesavealpha($destination_image, true);
-                            $transparent = imagecolorallocatealpha($destination_image, 255, 255, 255, 127);
-                            imagefilledrectangle($destination_image, 0, 0, $width, $height, $transparent);
-                        }
-                        
-                        // 计算缩放比例
-                        $scale = min($width / $source_width, $height / $source_height);
-                        $new_width = $source_width * $scale;
-                        $new_height = $source_height * $scale;
-                        $x = ($width - $new_width) / 2;
-                        $y = ($height - $new_height) / 2;
-                        
-                        // 缩放图片
-                        imagecopyresampled($destination_image, $source_image, $x, $y, 0, 0, $new_width, $new_height, $source_width, $source_height);
-                        
-                        // 保存图片
-                        switch ($source_type) {
-                            case IMAGETYPE_JPEG:
-                                $result = imagejpeg($destination_image, $destination, 85);
-                                break;
-                            case IMAGETYPE_PNG:
-                                $result = imagepng($destination_image, $destination, 6);
-                                break;
-                            case IMAGETYPE_GIF:
-                                $result = imagegif($destination_image, $destination);
-                                break;
-                            default:
-                                $result = false;
-                        }
-                        
-                        // 释放资源
-                        imagedestroy($source_image);
-                        imagedestroy($destination_image);
-                        
-                        return $result;
-                    }
+
                     
                     try {
                         // 检查用户名是否已被其他用户使用
@@ -504,7 +394,7 @@ switch ($action) {
                         
                         <tr>
                             <td colspan="2">
-                                <form method="post" action="users.php?action=edit&id=<?php echo $user_id; ?>" enctype="multipart/form-data">
+                                <form method="post" action="users.php?action=edit&id=<?php echo $user_id; ?>">
                                     <table border="1" width="100%" cellspacing="0" cellpadding="5">
                                         <tr>
                                             <td width="20%">用户头像</td>
@@ -512,32 +402,28 @@ switch ($action) {
                                                 <img src="<?php echo htmlspecialchars(getUserAvatar($user, 100)); ?>" width="100" height="100" style="border-radius: 50%; margin-bottom: 10px;">
                                                 <br>
                                                 <div style="margin: 10px 0;">
-                                                    <label style="display: block; margin-bottom: 5px;">头像URL</label>
+                                                    <label style="display: block; margin-bottom: 5px;">头像URL或相对路径</label>
                                                     <input type="text" name="avatar_url" placeholder="输入头像URL或相对路径" style="width: 100%; padding: 5px;">
                                                 </div>
-                                                <div style="margin: 10px 0;">
-                                                    <label style="display: block; margin-bottom: 5px;">或上传头像</label>
-                                                    <input type="file" name="avatar" accept="image/*">
-                                                </div>
-                                                <small>填写URL或上传文件，留空表示不修改</small>
+                                                <small>填写URL或相对路径，留空表示不修改</small>
                                             </td>
                                         </tr>
                                         <tr>
                                             <td width="20%">用户名</td>
                                             <td>
-                                                <input type="text" name="username" value="<?php echo htmlspecialchars($user['username']); ?>" required>
+                                                <input type="text" name="username" value="<?php echo htmlspecialchars($user['username']); ?>" required style="width: 100%;">
                                             </td>
                                         </tr>
                                         <tr>
                                             <td>邮箱</td>
                                             <td>
-                                                <input type="email" name="email" value="<?php echo htmlspecialchars($user['email']); ?>" required>
+                                                <input type="email" name="email" value="<?php echo htmlspecialchars($user['email']); ?>" required style="width: 100%; padding: 5px;">
                                             </td>
                                         </tr>
                                         <tr>
                                             <td>手机号</td>
                                             <td>
-                                                <input type="tel" name="mobile" value="<?php echo htmlspecialchars($user['mobile'] ?? ''); ?>" required>
+                                                <input type="tel" name="mobile" value="<?php echo htmlspecialchars($user['mobile'] ?? ''); ?>" required style="width: 100%; padding: 5px;">
                                             </td>
                                         </tr>
                                         <tr>
@@ -603,6 +489,12 @@ switch ($action) {
         // 不能删除系统用户
         if ($user_id == 'system' || $user_id == 'info') {
             header('Location: users.php?error=系统用户不可删除');
+            exit;
+        }
+        
+        // 不能删除ID为1的用户
+        if ($user_id == 1) {
+            header('Location: users.php?error=ID为1的用户不可删除');
             exit;
         }
         
@@ -982,6 +874,11 @@ switch ($action) {
             $value = $_POST['value'] ?? '';
             $user_ids = $_POST['user_ids'] ?? [];
             
+            // 确保$user_ids是数组
+            if (!is_array($user_ids)) {
+                $user_ids = [$user_ids];
+            }
+            
             if (empty($value) || empty($user_ids)) {
                 $error = '请填写所有必填字段';
             } else if (!is_numeric($value)) {
@@ -1123,6 +1020,11 @@ switch ($action) {
             $action_type = $_POST['action_type'] ?? '';
             $value = $_POST['value'] ?? '';
             $user_ids = $_POST['user_ids'] ?? [];
+            
+            // 确保$user_ids是数组
+            if (!is_array($user_ids)) {
+                $user_ids = [$user_ids];
+            }
             
             if (empty($action_type) || empty($user_ids)) {
                 $error = '请填写所有必填字段';
@@ -1290,8 +1192,7 @@ switch ($action) {
         $per_page = 20;
         $offset = ($page - 1) * $per_page;
         
-        // 获取搜索条件
-        $search = isset($_GET['search']) ? trim($_GET['search']) : '';
+        // 获取筛选条件
         $role_filter = isset($_GET['role']) ? $_GET['role'] : '';
         $status_filter = isset($_GET['status']) ? $_GET['status'] : '';
         
@@ -1299,19 +1200,14 @@ switch ($action) {
         $where = [];
         $params = [];
         
-        if (!empty($search)) {
-            $where[] = "(`username` LIKE :search OR `email` LIKE :search OR `mobile` LIKE :search)";
-            $params['search'] = "%{$search}%";
-        }
-        
         if (!empty($role_filter)) {
-            $where[] = "`role` = :role";
-            $params['role'] = $role_filter;
+            $where[] = "`role` = ?";
+            $params[] = $role_filter;
         }
         
         if (!empty($status_filter)) {
-            $where[] = "`status` = :status";
-            $params['status'] = $status_filter;
+            $where[] = "`status` = ?";
+            $params[] = $status_filter;
         }
         
         // 排除系统用户
@@ -1326,9 +1222,10 @@ switch ($action) {
         );
         
         // 获取用户列表
+        $user_params = array_merge($params, [$offset, $per_page]);
         $users = $db->fetchAll(
-            "SELECT * FROM `{$prefix}users` WHERE {$where_clause} ORDER BY `id` DESC LIMIT :offset, :limit",
-            array_merge($params, ['offset' => $offset, 'limit' => $per_page])
+            "SELECT * FROM `{$prefix}users` WHERE {$where_clause} ORDER BY `id` DESC LIMIT ?, ?",
+            $user_params
         );
         
         // 计算总页数
@@ -1357,76 +1254,28 @@ switch ($action) {
                             </td>
                         </tr>
                         
-                        <!-- 搜索和筛选 -->
-                        <tr>
-                            <td colspan="2">
-                                <form method="get" action="users.php">
-                                    <table border="1" width="100%" cellspacing="0" cellpadding="5">
-                                        <tr>
-                                            <td>搜索</td>
-                                            <td>
-                                                <input type="text" name="search" value="<?php echo htmlspecialchars($search); ?>" placeholder="用户名、邮箱或手机号">
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td>角色</td>
-                                            <td>
-                                                <select name="role">
-                                                    <option value="">全部</option>
-                                                    <?php foreach (getUserRoles() as $key => $value): ?>
-                                                        <option value="<?php echo $key; ?>" <?php echo $role_filter === $key ? 'selected' : ''; ?>>
-                                                            <?php echo $value; ?>
-                                                        </option>
-                                                    <?php endforeach; ?>
-                                                </select>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td>状态</td>
-                                            <td>
-                                                <select name="status">
-                                                    <option value="">全部</option>
-                                                    <?php foreach (getUserStatuses() as $key => $value): ?>
-                                                        <option value="<?php echo $key; ?>" <?php echo $status_filter === $key ? 'selected' : ''; ?>>
-                                                            <?php echo $value; ?>
-                                                        </option>
-                                                    <?php endforeach; ?>
-                                                </select>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td colspan="2" align="center">
-                                                <button type="submit">搜索</button>
-                                                <a href="users.php">重置</a>
-                                            </td>
-                                        </tr>
-                                    </table>
-                                </form>
-                            </td>
-                        </tr>
+
                         
                         <!-- 快捷操作 -->
                         <tr>
                             <td colspan="2">
                                 <table border="1" width="100%" cellspacing="0" cellpadding="5">
                                     <tr>
-                                        <td colspan="2">
+                                        <td colspan="4">
                                             <strong>快捷操作：</strong>
                                         </td>
                                     </tr>
                                     <tr>
-                                        <td width="50%">
+                                        <td width="25%" align="center">
                                             <a href="users.php?action=points">批量操作积分</a>
                                         </td>
-                                        <td width="50%">
+                                        <td width="25%" align="center">
                                             <a href="users.php?action=experience">批量操作经验</a>
                                         </td>
-                                    </tr>
-                                    <tr>
-                                        <td width="50%">
+                                        <td width="25%" align="center">
                                             <a href="users.php?action=level">批量操作等级</a>
                                         </td>
-                                        <td width="50%">
+                                        <td width="25%" align="center">
                                             <a href="users.php?action=badge">批量操作徽章</a>
                                         </td>
                                     </tr>
@@ -1485,7 +1334,9 @@ switch ($action) {
                                                 <td>
                                                     <?php if ($user['role'] !== 'system'): ?>
                                                         <a href="users.php?action=edit&id=<?php echo $user['id']; ?>">编辑</a>
-                                                        <a href="users.php?action=delete&id=<?php echo $user['id']; ?>" onclick="return confirm('确定要删除该用户吗？');">删除</a>
+                                                        <?php if ($user['id'] != 1): ?>
+                                                            <a href="users.php?action=delete&id=<?php echo $user['id']; ?>" onclick="return confirm('确定要删除该用户吗？');">删除</a>
+                                                        <?php endif; ?>
                                                     <?php else: ?>
                                                         -
                                                     <?php endif; ?>
@@ -1507,13 +1358,13 @@ switch ($action) {
                         <tr>
                             <td colspan="2" align="center">
                                 <?php if ($page > 1): ?>
-                                    <a href="users.php?page=<?php echo $page - 1; ?><?php echo !empty($search) ? '' : '&search=' . urlencode($search); ?><?php echo !empty($role_filter) ? '' : '&role=' . urlencode($role_filter); ?><?php echo !empty($status_filter) ? '' : '&status=' . urlencode($status_filter); ?>">上一页</a>
+                                    <a href="users.php?page=<?php echo $page - 1; ?><?php echo !empty($search) ? '&search=' . urlencode($search) : ''; ?><?php echo !empty($role_filter) ? '&role=' . urlencode($role_filter) : ''; ?><?php echo !empty($status_filter) ? '&status=' . urlencode($status_filter) : ''; ?>">上一页</a>
                                 <?php endif; ?>
                                 
                                 第 <?php echo $page; ?> / <?php echo $total_pages; ?> 页
                                 
                                 <?php if ($page < $total_pages): ?>
-                                    <a href="users.php?page=<?php echo $page + 1; ?><?php echo !empty($search) ? '' : '&search=' . urlencode($search); ?><?php echo !empty($role_filter) ? '' : '&role=' . urlencode($role_filter); ?><?php echo !empty($status_filter) ? '' : '&status=' . urlencode($status_filter); ?>">下一页</a>
+                                    <a href="users.php?page=<?php echo $page + 1; ?><?php echo !empty($search) ? '&search=' . urlencode($search) : ''; ?><?php echo !empty($role_filter) ? '&role=' . urlencode($role_filter) : ''; ?><?php echo !empty($status_filter) ? '&status=' . urlencode($status_filter) : ''; ?>">下一页</a>
                                 <?php endif; ?>
                             </td>
                         </tr>

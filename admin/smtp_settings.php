@@ -34,12 +34,31 @@ $prefix = defined('DB_PREFIX') ? DB_PREFIX : 'forum_';
 // 获取当前SMTP设置
 $smtpSettings = [];
 try {
-    $settings = $db->fetchAll("SELECT `setting_key`, `setting_value` FROM `{$prefix}settings` WHERE `setting_key` LIKE 'smtp_%'");
-    foreach ($settings as $setting) {
-        $smtpSettings[$setting['setting_key']] = $setting['setting_value'];
+    // 测试数据库连接
+    if (!$db) {
+        throw new Exception('数据库连接失败');
+    }
+    
+    // 直接获取所有设置，然后筛选SMTP相关的
+    $all_settings = $db->fetchAll("SELECT `setting_key`, `setting_value` FROM `{$prefix}settings`");
+    foreach ($all_settings as $setting) {
+        if (strpos($setting['setting_key'], 'smtp_') === 0) {
+            $smtpSettings[$setting['setting_key']] = $setting['setting_value'];
+        }
+    }
+    
+    // 验证是否获取到设置
+    if (empty($smtpSettings)) {
+        // 尝试另一种查询方式
+        $smtp_settings = $db->fetchAll("SELECT * FROM `{$prefix}settings` WHERE setting_key LIKE 'smtp_%'");
+        foreach ($smtp_settings as $setting) {
+            $smtpSettings[$setting['setting_key']] = $setting['setting_value'];
+        }
     }
 } catch (Exception $e) {
     $error = '加载设置失败: ' . $e->getMessage();
+    // 记录错误
+    error_log('SMTP设置加载失败: ' . $e->getMessage());
 }
 
 // 处理表单提交

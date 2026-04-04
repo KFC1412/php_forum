@@ -620,6 +620,18 @@ class JsonQuery {
         return $data;
     }
     
+    /**
+     * 处理LIKE匹配
+     */
+    private function likeMatch($value, $pattern) {
+        // 替换SQL LIKE模式为正则表达式
+        $pattern = str_replace('%', '.*', $pattern);
+        $pattern = str_replace('_', '.', $pattern);
+        $pattern = '/^' . $pattern . '$/i';
+        
+        return preg_match($pattern, $value) === 1;
+    }
+    
     private function executeInsert() {
         if (preg_match('/INSERT\s+INTO\s+`?(\w+)`?\s*\(([^)]+)\)\s*VALUES\s*\(([^)]+)\)/i', $this->sql, $matches)) {
             $table = $matches[1];
