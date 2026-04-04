@@ -534,13 +534,88 @@ class JsonQuery {
                     }
                 } elseif (preg_match('/`?(\w+)`?\s+IN\s*\(([^\)]+)\)/i', $condition, $matches)) {
                     $field = $matches[1];
-                    $inValues = $matches[2];
+                    $inValuesStr = $matches[2];
                     
-                    // 移除值周围的引号
-                    $inValues = preg_replace('/[\'"\s]/', '', $inValues);
-                    $inValues = explode(',', $inValues);
+                    // 检查是否是参数绑定的IN条件 (IN (?, ?, ?))
+                    if (preg_match_all('/\?/', $inValuesStr, $placeholders)) {
+                        $paramCount = count($placeholders[0]);
+                        $inValues = [];
+                        
+                        // 计算起始参数索引
+                        $startIndex = 0;
+                        for ($i = 0; $i < strlen($where); $i++) {
+                            if ($where[$i] == '?') {
+                                if (strpos(substr($where, 0, $i), $condition) !== false) {
+                                    break;
+                                }
+                                $startIndex++;
+                            }
+                        }
+                        
+                        // 收集参数值
+                        for ($i = 0; $i < $paramCount; $i++) {
+                            if (isset($this->params[$startIndex + $i])) {
+                                $inValues[] = (string)$this->params[$startIndex + $i];
+                            }
+                        }
+                    } else {
+                        // 直接在SQL中写值的情况
+                        $inValues = preg_replace('/[\'"\s]/', '', $inValuesStr);
+                        $inValues = explode(',', $inValues);
+                    }
                     
                     if (!isset($row[$field]) || !in_array((string)$row[$field], $inValues)) {
+                        $andMatch = false;
+                        break;
+                    }
+                } elseif (preg_match('/`?(\w+)`?\s+LIKE\s*\?/i', $condition, $matches)) {
+                    $field = $matches[1];
+                    // 计算参数索引
+                    $paramIndex = 0;
+                    for ($i = 0; $i < strlen($where); $i++) {
+                        if ($where[$i] == '?') {
+                            if (strpos(substr($where, 0, $i), $condition) !== false) {
+                                break;
+                            }
+                            $paramIndex++;
+                        }
+                    }
+                    $pattern = isset($this->params[$paramIndex]) ? $this->params[$paramIndex] : null;
+                    
+                    if (!isset($row[$field]) || !$this->likeMatch((string)$row[$field], (string)$pattern)) {
+                        $andMatch = false;
+                        break;
+                    }
+                } elseif (preg_match('/`?(\w+)`?\s+LIKE\s*:([\w_]+)/i', $condition, $matches)) {
+                    $field = $matches[1];
+                    $paramName = $matches[2];
+                    $pattern = isset($this->params[$paramName]) ? $this->params[$paramName] : null;
+                    
+                    if (!isset($row[$field]) || !$this->likeMatch((string)$row[$field], (string)$pattern)) {
+                        $andMatch = false;
+                        break;
+                    }
+                } elseif (preg_match('/`?(\w+)`?\s+IS\s+NOT\s+NULL/i', $condition, $matches)) {
+                    $field = $matches[1];
+                    if (!isset($row[$field]) || $row[$field] === null) {
+                        $andMatch = false;
+                        break;
+                    }
+                } elseif (preg_match('/`?(\w+)`?\s+IS\s+NULL/i', $condition, $matches)) {
+                    $field = $matches[1];
+                    if (isset($row[$field]) && $row[$field] !== null) {
+                        $andMatch = false;
+                        break;
+                    }
+                } elseif (preg_match('/`?(\w+)`?\s*!=\s*\'\'/i', $condition, $matches)) {
+                    $field = $matches[1];
+                    if (!isset($row[$field]) || (string)$row[$field] == '') {
+                        $andMatch = false;
+                        break;
+                    }
+                } elseif (preg_match('/`?(\w+)`?\s*=\s*\'\'/i', $condition, $matches)) {
+                    $field = $matches[1];
+                    if (!isset($row[$field]) || (string)$row[$field] != '') {
                         $andMatch = false;
                         break;
                     }

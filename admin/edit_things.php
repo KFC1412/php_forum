@@ -83,51 +83,74 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_notification']))
         // 处理邮件通知
         if ($sendEmailNotification && !empty($emailSubject) && !empty($emailContent)) {
             // 获取目标用户列表
-            if ($notificationScope === 'selected' && !empty($selectedUserIds)) {
-                $users = $db->fetchAll(
-                    "SELECT id, username, email FROM `{$prefix}users` WHERE `id` IN (" . implode(',', array_map('intval', $selectedUserIds)) . ") AND `status` = 'active' AND `email` IS NOT NULL AND `email` != ''"
-                );
-            } else {
-                // 全体用户
-                $users = $db->fetchAll(
-                    "SELECT id, username, email FROM `{$prefix}users` WHERE `status` = 'active' AND `email` IS NOT NULL AND `email` != ''"
-                );
-            }
-            
-            $sentCount = 0;
-            $failCount = 0;
-            
-            foreach ($users as $user) {
-                $content = <<<HTML
+            $users = [];
+            try {
+                if ($notificationScope === 'selected' && !empty($selectedUserIds)) {
+                    // 构建IN条件的参数
+                    $placeholders = [];
+                    $params = [];
+                    foreach ($selectedUserIds as $index => $user_id) {
+                        $placeholders[] = '?';
+                        $params[] = (int)$user_id;
+                    }
+                    $placeholders_str = implode(',', $placeholders);
+                    
+                    $users = $db->fetchAll(
+                        "SELECT id, username, email FROM `{$prefix}users` WHERE `id` IN ({$placeholders_str}) AND `status` = 'active' AND `email` IS NOT NULL AND `email` != '' AND `id` != 'system' AND `id` != 'info'",
+                        $params
+                    );
+                } else {
+                    // 全体用户
+                    $users = $db->fetchAll(
+                        "SELECT id, username, email FROM `{$prefix}users` WHERE `status` = 'active' AND `email` IS NOT NULL AND `email` != '' AND `id` != 'system' AND `id` != 'info'"
+                    );
+                }
+                
+                $sentCount = 0;
+                $failCount = 0;
+                
+                foreach ($users as $user) {
+                    // 确保用户邮箱存在且不为空
+                    if (empty($user['email'])) {
+                        $failCount++;
+                        continue;
+                    }
+                    
+                    $content = <<<HTML
 <p>您好，{$user['username']}：</p>
 <p>{$emailContent}</p>
 HTML;
-                
-                $result = sendMail($user['email'], "【{$site_name}】{$emailSubject}", $content, 'system');
-                
-                if ($result) {
-                    $sentCount++;
-                } else {
-                    $failCount++;
+                    
+                    $result = sendMail($user['email'], "【{$site_name}】{$emailSubject}", $content, 'system');
+                    
+                    if ($result) {
+                        $sentCount++;
+                    } else {
+                        $failCount++;
+                    }
+                    
+                    usleep(50000);
                 }
                 
-                usleep(50000);
+                $message = "邮件通知已发送：成功 {$sentCount} 封，失败 {$failCount} 封。";
+                $messageType = 'success';
+                
+                // 记录操作日志
+                logAdminAction('管理员发送邮件通知', 'system', 0, [
+                    'subject' => $emailSubject,
+                    'scope' => $notificationScope,
+                    'recipient_count' => count($users),
+                    'content_length' => mb_strlen($emailContent),
+                    'admin_id' => $_SESSION['user_id'],
+                    'admin_username' => $_SESSION['username'],
+                    'action_time' => date('Y-m-d H:i:s'),
+                    'ip_address' => getClientIp()
+                ]);
+            } catch (Exception $e) {
+                $message = '发送邮件通知失败：' . $e->getMessage();
+                $messageType = 'error';
+                error_log('邮件通知发送失败：' . $e->getMessage());
             }
-            
-            $message = "邮件通知已发送：成功 {$sentCount} 封，失败 {$failCount} 封。";
-            $messageType = 'success';
-            
-            // 记录操作日志
-            logAdminAction('管理员发送邮件通知', 'system', 0, [
-                'subject' => $emailSubject,
-                'scope' => $notificationScope,
-                'recipient_count' => count($users),
-                'content_length' => mb_strlen($emailContent),
-                'admin_id' => $_SESSION['user_id'],
-                'admin_username' => $_SESSION['username'],
-                'action_time' => date('Y-m-d H:i:s'),
-                'ip_address' => getClientIp()
-            ]);
         }
         
         // 处理站内消息通知
