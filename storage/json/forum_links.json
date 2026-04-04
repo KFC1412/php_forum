@@ -1,0 +1,36 @@
+{
+    "data": [
+        {
+            "name": "EDUCN论坛",
+            "url": "https://talk.gt.tc/",
+            "description": "EDUCN论坛官方网站",
+            "sort_order": 100,
+            "status": 1,
+            "id": 1,
+            "created_at": "2026-03-21 12:16:18",
+            "updated_at": "2026-03-22 01:22:45"
+        },
+        {
+            "name": "导航页",
+            "url": "https://navs.gt.tc/",
+            "description": "导航页",
+            "sort_order": 0,
+            "status": 1,
+            "created_at": "2026-03-22 01:21:15",
+            "updated_at": "2026-03-23 15:13:21",
+            "id": 2
+        },
+        {
+            "name": "中国高校论坛",
+            "url": "https://educn.gt.tc/",
+            "description": "中华人民共和国高校论坛",
+            "sort_order": 1,
+            "status": 1,
+            "created_at": "2026-03-22 22:51:50",
+            "updated_at": "2026-03-23 14:59:33",
+            "id": 3
+        }
+    ],
+    "auto_increment": 4,
+    "schema": "CREATE TABLE `forum_links` (\n            `id` int(11) NOT NULL AUTO_INCREMENT,\n            `name` varchar(100) NOT NULL COMMENT '友链名称',\n            `url` varchar(255) NOT NULL COMMENT '友链URL',\n            `description` varchar(255) DEFAULT NULL COMMENT '友链描述',\n            `sort_order` int(11) DEFAULT 0 COMMENT '排序顺序，数字越小越靠前',\n            `status` tinyint(1) DEFAULT 1 COMMENT '状态：1=启用，0=禁用',\n            `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,\n            `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,\n            PRIMARY KEY (`id`),\n            UNIQUE KEY `name` (`name`),\n            KEY `status` (`status`),\n            KEY `sort_order` (`sort_order`)\n        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+}

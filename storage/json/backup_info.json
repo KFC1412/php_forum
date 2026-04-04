@@ -1,0 +1,16 @@
+{
+    "type": "json",
+    "version": "v0.1.6_t_260401",
+    "created_at": "2026-04-02 12:35:20",
+    "tables": [
+        "backup_info.json",
+        "forum_admin_logs.json",
+        "forum_categories.json",
+        "forum_links.json",
+        "forum_logs.json",
+        "forum_posts.json",
+        "forum_settings.json",
+        "forum_topics.json",
+        "forum_users.json"
+    ]
+}
