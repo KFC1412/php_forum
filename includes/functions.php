@@ -1,4 +1,7 @@
 <?php
+/**
+ * 核心功能函数库 - 提供各种通用功能函数
+ */
 
 require_once __DIR__ . '/url_helper.php';
 require_once __DIR__ . '/pagination_helper.php';

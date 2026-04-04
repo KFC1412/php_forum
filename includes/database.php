@@ -1,4 +1,7 @@
 <?php
+/**
+ * 数据库存储接口和实现 - 提供数据库操作功能
+ */
 
 interface StorageInterface {
     public function prepare($sql);

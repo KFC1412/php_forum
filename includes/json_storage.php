@@ -1,4 +1,7 @@
 <?php
+/**
+ * JSON存储类 - 提供基于JSON文件的数据存储功能
+ */
 
 class JsonStorage {
     private static $instance = null;
