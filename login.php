@@ -48,7 +48,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     // 验证输入
     if (empty($username) || empty($password)) {
-        $error = '请填写用户名和密码';
+        $error = '请填写账号和密码';
     } else {
         try {
             $db = getDB();
@@ -65,7 +65,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             );
             
             if (!$user || !password_verify($password, $user['password'])) {
-                $error = '用户名或密码不正确';
+                $error = '账号或密码不正确';
                 logAction('用户登录失败：用户名或密码错误', 'user', 0, [
                     'username' => $username,
                     'login_ip' => getClientIp(),
@@ -215,7 +215,7 @@ include __DIR__ . '/templates/header.php';
                         <form method="post" action="<?php echo getLoginUrl(); ?>">
                             <table width="100%" cellspacing="0" cellpadding="5">
                                 <tr>
-                                    <td>用户名或电子邮箱</td>
+                                    <td>用户名//邮箱/手机号</td>
                                     <td><input type="text" name="username" required style="width: 100%;"></td>
                                 </tr>
                                 <tr>
