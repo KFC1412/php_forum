@@ -51,7 +51,7 @@ function getDefaultData($prefix = 'forum_') {
             ],
             [
                 'setting_key' => 'forum_version',
-                'setting_value' => 'v0.1.8_t_260403',
+                'setting_value' => 'v0.2.0_t_260404',
                 'setting_type' => 'string',
                 'description' => '论坛版本'
             ],

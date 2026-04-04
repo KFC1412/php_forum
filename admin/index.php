@@ -113,7 +113,7 @@ try {
     $system_info = [
         'php_version' => PHP_VERSION,
         'mysql_version' => $storage_type === 'json' ? 'JSON Storage' : $db->fetchColumn("SELECT VERSION()"),
-        'forum_version' => getSetting('forum_version', 'v0.1.8_t_260403'),
+        'forum_version' => getSetting('forum_version', 'v0.2.0_t_260404'),
         'install_date' => getSetting('install_date', date('Y-m-d H:i:s')),
         'server_software' => $_SERVER['SERVER_SOFTWARE'] ?? 'Unknown',
         'server_os' => PHP_OS

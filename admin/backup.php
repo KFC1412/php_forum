@@ -82,7 +82,7 @@ switch ($action) {
                 // 添加备份信息
                 $backup_info = [
                     'type' => 'json',
-                    'version' => getSetting('forum_version', 'v0.1.8_t_260403'),
+                    'version' => getSetting('forum_version', 'v0.2.0_t_260404'),
                     'created_at' => date('Y-m-d H:i:s'),
                     'tables' => array_map('basename', $json_files)
                 ];
@@ -111,7 +111,7 @@ switch ($action) {
                 // 写入备份文件头
                 fwrite($fp, "-- PHP轻论坛数据库备份\n");
                 fwrite($fp, "-- 创建时间: " . date('Y-m-d H:i:s') . "\n");
-                fwrite($fp, "-- 版本: " . getSetting('forum_version', 'v0.1.8_t_260403') . "\n");
+                fwrite($fp, "-- 版本: " . getSetting('forum_version', 'v0.2.0_t_260404') . "\n");
                 fwrite($fp, "-- -------------------------------------------------------\n\n");
                 
                 // 备份每个表

@@ -179,7 +179,7 @@ function backupDatabase() {
         
         $backup = "-- EDUCN论坛数据库备份\n";
         $backup .= "-- 生成时间: " . date('Y-m-d H:i:s') . "\n";
-        $backup .= "-- 版本: " . getSetting('forum_version', 'v0.1.8_t_260403') . "\n\n";
+        $backup .= "-- 版本: " . getSetting('forum_version', 'v0.2.0_t_260404') . "\n\n";
         
         foreach ($tables as $table) {
             $table_name = reset($table);

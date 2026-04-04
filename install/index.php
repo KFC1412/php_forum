@@ -959,7 +959,7 @@ function showHeader($title, $steps, $current_step) {
             <tr>
                 <td class="install-header">
                     <h1>EDUCN论坛安装向导</h1>
-                    <div class="install-version">EDUCN-Forum php_forum_json_v0.1.8_t_260403</div>
+                    <div class="install-version">EDUCN-Forum php_forum_json_v0.2.0_t_260404</div>
                 </td>
             </tr>
             <tr>

@@ -6,7 +6,7 @@
                 &copy; <?php echo date('Y'); ?> <?php echo htmlspecialchars(getSetting('site_name', 'EDUCN论坛')); ?>. 保留所有权利
             </td>
             <td width="50%" align="right">
-                Powered by <a href="https://talk.gt.tc/" target="_blank"><?php echo htmlspecialchars(getSetting('forum_version', 'v0.1.8_t_260403')); ?></a>
+                Powered by <a href="https://talk.gt.tc/" target="_blank"><?php echo htmlspecialchars(getSetting('forum_version', 'v0.2.0_t_260404')); ?></a>
             </td>
         </tr>
         <tr>
