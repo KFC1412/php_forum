@@ -309,6 +309,7 @@ x:\www\
 
 ## 技术支持
 
+- 最新版在线体验地址：https://scrc.gt.tc/
 - 官方网站：https://talk.gt.tc/
 - 技术支持：by2312@qq.com
 - 交流群：1097418289
