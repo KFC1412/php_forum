@@ -4,7 +4,7 @@
 
 EDUCN论坛（EDUCN-Forum）是一个轻量级、高性能的 PHP 论坛程序，采用现代化架构设计，支持 MySQL 和 JSON 文件两种存储方式。v0.2.0_t_260404 版本在原有基础上进行了全面优化，新增完善的举报系统、申诉系统、邮件通知系统、系统日志管理、公告管理等实用功能，并大幅优化了 ICE 编辑器的用户体验。
 
-本程序基于[LightForum]（https://lightforum.org/）项目修改
+本程序基于[LightForum](https://lightforum.org/)项目修改
 LightForum GitHub 仓库：https://github.com/LightForum/LightForum
 
 ## 主要特性
@@ -313,7 +313,7 @@ x:\www\
 - 官方网站：https://talk.gt.tc/
 - 技术支持：by2312@qq.com
 - 交流群：1097418289
-- 反馈建议：在https://scrc.gt.tc/"问答专区"分类发布帖子
+- 反馈建议：在"问答专区"分类发布帖子
 - 项目 Gitee 仓库：https://gitee.com/BD8EFG/php_forum
 - 项目 GitHub 仓库：https://github.com/KFC1412/php_forum
 
