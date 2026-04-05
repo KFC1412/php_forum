@@ -312,7 +312,9 @@ x:\www\
 - 官方网站：https://talk.gt.tc/
 - 技术支持：by2312@qq.com
 - 交流群：1097418289
-- 反馈建议：在"问答专区"分类发布帖子
+- 反馈建议：在https://scrc.gt.tc/"问答专区"分类发布帖子
+- 项目 Gitee 仓库：https://gitee.com/BD8EFG/php_forum
+- 项目 GitHub 仓库：https://github.com/KFC1412/php_forum
 
 ## 许可证
 
