@@ -234,7 +234,16 @@ function getActiveLinks() {
     
     try {
         $db = getDB();
-        $links = $db->fetchAll("SELECT * FROM `links` WHERE `status` = 1 ORDER BY `sort_order` ASC");
+        $prefix = defined('DB_PREFIX') ? DB_PREFIX : 'forum_';
+        $storage_type = defined('STORAGE_TYPE') ? STORAGE_TYPE : 'mysql';
+        
+        if ($storage_type === 'json') {
+            // JSON存储：使用简单查询
+            $links = $db->select('links', ['status' => 1], 'sort_order ASC');
+        } else {
+            // MySQL存储：使用带前缀的表名
+            $links = $db->fetchAll("SELECT * FROM `{$prefix}links` WHERE `status` = 1 ORDER BY `sort_order` ASC");
+        }
         
         // 缓存友链列表，有效期10分钟
         $cache->set($cache_key, $links, 600);
